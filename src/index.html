@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Terminal</title>
+    <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #1e1e1e;
+        /* Tell Chromium this page is dark, so anything it draws itself
+           (like scrollbars) uses its dark variant */
+        color-scheme: dark;
+      }
+      #terminal {
+        height: 100%;
+        padding: 4px;
+        box-sizing: border-box;
+      }
+      /* xterm's scrollback lives in a scrollable div (.xterm-viewport), and
+         Chromium gives it a wide default scrollbar. Restyle it into a slim
+         translucent thumb, like a native macOS overlay scrollbar. */
+      .xterm-viewport::-webkit-scrollbar {
+        width: 6px;
+      }
+      .xterm-viewport::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .xterm-viewport::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 3px;
+      }
+      .xterm-viewport::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+    <script src="../dist/renderer.js"></script>
+  </body>
+</html>

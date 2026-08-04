@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    // Where source lives and where compiled JS goes
+    "rootDir": "src",
+    "outDir": "dist",
+
+    // Emit CommonJS (require/exports) — what Electron's main and preload
+    // expect. renderer.ts avoids imports entirely, so its output is a
+    // plain browser script.
+    "module": "commonjs",
+    "target": "es2022",
+
+    // The renderer needs browser types (DOM); main needs Node types.
+    // One config serves both — the unneeded types are just ignored.
+    "lib": ["es2022", "dom"],
+    "types": ["node"],
+
+    // The whole point: maximum checking
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,99 @@
+# Architecture
+
+The goal of this document: keep the app simple *on purpose*. It records the
+structure, the reasoning behind it, and the rules for growing it without
+wrecking it. Terms are defined in [GLOSSARY.md](GLOSSARY.md); the data-flow
+walkthrough lives in [README.md](README.md).
+
+## The one idea
+
+A terminal emulator is naturally two halves, and they were literally two
+machines in 1978: a dumb screen-and-keyboard (the VT100) and a computer,
+joined by a serial cable. We keep that exact split:
+
+| 1978                  | This app                              |
+| --------------------- | ------------------------------------- |
+| VT100 (screen + keys) | renderer process running xterm.js     |
+| serial cable          | IPC channel (3 messages)              |
+| the computer          | main process holding a PTY + zsh      |
+
+Everything in the codebase is on one side of that cable or the other. When a
+new feature comes along, the first design question is always: **which side
+does this belong on, and does the cable need to change?**
+
+## The boundary
+
+The entire contract between the two halves is `window.terminal`, defined in
+`preload.js`:
+
+```
+sendInput(data)        renderer → main   "the user typed these bytes"
+resize(cols, rows)     renderer → main   "the screen is now this size"
+onData(callback)       main → renderer   "the shell produced these bytes"
+```
+
+Rules that keep this boundary healthy:
+
+1. **Only bytes and sizes cross it.** No commands, no file paths, no
+   structured objects. The renderer never knows what shell is running; the
+   main process never knows how the screen is drawn.
+2. **The renderer stays a dumb screen.** Anything that touches the OS
+   (processes, files, clipboard writes are the one pragmatic exception)
+   belongs in main.
+3. **Grow the protocol, don't bypass it.** A new capability means a new,
+   explicitly named message in `preload.js` — never widening the sandbox or
+   exposing Node.js to the page.
+
+This is also the security model (see "Preload script" in the glossary): the
+page can only ever do what these three functions allow.
+
+## Decisions so far
+
+Each entry: what we chose, and why. If a decision stops making sense, we
+change it and update this list.
+
+- **TypeScript, compiled by `tsc` alone — still no bundler, no framework.**
+  (Replaced the original "plain JavaScript, no build step" decision.) Node
+  22.18+ — including the Node 24 inside our Electron — can *run* `.ts` files
+  natively by stripping the type annotations, but that gets us nothing on its
+  own: stripping isn't checking, and the renderer runs in Chromium, which
+  can't run TypeScript at all. So the one tool is the official compiler:
+  `tsc` type-checks all of `src/` and emits plain JS into `dist/`. Cost we
+  accept: a compile step inside `npm start`. The no-bundler rule stands —
+  `dist/` files map 1:1 to `src/` files, nothing is fused or minified.
+- **The IPC contract is a type.** `src/bridge.d.ts` declares `TerminalBridge`;
+  preload implements it and the renderer consumes it, so the two sides of the
+  boundary cannot silently drift apart — drift is now a compile error.
+- **One window, one shell, no session abstraction.** Tabs would want a
+  `Map<sessionId, pty>` and an id on every message — we deliberately did not
+  build that. It is a rewrite of ~15 lines when tabs arrive; carrying the
+  abstraction before then costs more in reading than it saves in typing.
+- **Shell lifecycle is symmetric.** Closing the window kills the shell;
+  the shell exiting closes the window. No orphan processes, no zombie windows.
+- **The shell spawns only after the page has loaded.** The two halves boot
+  in parallel, and shell output sent to a page that isn't listening yet is
+  silently dropped — a race we'd usually win (zsh reads dotfiles slower than
+  Chromium loads a page) but could lose. Main waits for `loadFile` to
+  resolve, tracking the renderer's reported grid size in the meantime, so
+  the shell is born already listening *and* at the right size.
+- **Login shell (`zsh -l`), spawned in `$HOME`.** The app should feel
+  identical to Terminal.app on first launch — same prompt, same PATH.
+- **xterm.js and node-pty do the hard parts.** Escape-sequence parsing and
+  PTY syscalls are decades-deep rabbit holes. We own the wiring, not the
+  emulation. (If we ever want to *learn* the parsing, we can write a toy
+  parser on the side without touching the app.)
+
+## Where future features will live
+
+A quick map so features land on the right side of the cable:
+
+- **Renderer-only** (no protocol change): themes/fonts, search (xterm
+  search addon), clickable links, scrollback size, ⌘K clear.
+- **Main-only** (no protocol change): default working directory, shell
+  choice, window size persistence.
+- **Protocol changes** (the expensive kind — design first): tabs/splits
+  (session ids on every message), config file (a `config:get` message or
+  similar), shell integration/OSC hooks (new main → renderer events).
+
+The rule of thumb: protocol changes get a moment of planning in this doc
+*before* the code is written; the other two kinds can just be built.

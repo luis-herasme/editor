@@ -71,7 +71,7 @@ the other end echoes it back.
 | `src/preload.ts`  | Security bridge: exposes exactly 3 functions as `window.terminal` |
 | `src/renderer.ts` | Sets up xterm.js and wires it to `window.terminal`                |
 | `src/bridge.d.ts` | The IPC contract as a type, shared by preload and renderer        |
-| `index.html`      | The page: one `<div>`, xterm's CSS/JS via script tags             |
+| `src/index.html`  | The page: one `<div>`, xterm's CSS/JS via script tags             |
 | `tsconfig.json`   | Compiler settings; `tsc` emits `src/*.ts` → `dist/*.js` 1:1       |
 
 There is deliberately no bundler, no framework, and no abstraction for
