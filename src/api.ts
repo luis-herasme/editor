@@ -21,7 +21,9 @@ export type SplitSide = "left" | "right" | "top" | "bottom";
 // Imperative requests, into the editor. `id` defaults to the active tab
 // where it's optional.
 export type Command =
-  | { type: "new-tab" }
+  // Open a new tab (default: in the active group). Double-clicking a tab
+  // strip's empty space issues this with that strip's group.
+  | { type: "new-tab"; groupId?: string }
   | { type: "close-tab"; id?: number }
   | { type: "activate-tab"; id: number }
   | { type: "write"; id?: number; text: string } // type into a terminal

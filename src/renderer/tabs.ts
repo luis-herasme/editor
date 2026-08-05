@@ -57,8 +57,10 @@ let activeId = -1;
 let handOffPaneElement: HTMLElement | undefined;
 let handOffTabElement: HTMLElement | undefined;
 
+const layoutElement = requireElement("layout");
+
 const dockviewLibrary = window.dockview;
-const dockview = new dockviewLibrary.DockviewComponent(requireElement("layout"), {
+const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
   theme: dockviewLibrary.themeDark,
   disableFloatingGroups: true,
   createComponent: () => {
@@ -191,6 +193,39 @@ dockview.api.onDidActivePanelChange((event) => {
   });
 });
 
+// Commands name groups by their opaque id; Dockview hands out group objects.
+function findGroup(groupId: string): DockviewGroupPanel | undefined {
+  for (const group of dockview.api.groups) {
+    if (group.id === groupId) {
+      return group;
+    }
+  }
+  return undefined;
+}
+
+// Double-clicking a tab strip's empty space opens a tab in that strip's
+// group, the terminal-app convention. Delegated from the layout root: the
+// void container is the strip's leftover space, so tabs and the + button
+// never match.
+layoutElement.addEventListener("dblclick", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  if (!target.closest(".dv-void-container")) {
+    return;
+  }
+  for (const group of dockview.api.groups) {
+    if (group.element.contains(target)) {
+      executeCommand({
+        type: "new-tab",
+        groupId: group.id,
+      });
+      return;
+    }
+  }
+});
+
 export function getTabTitle(id: number): string | undefined {
   const tab = tabs.get(id);
   if (!tab) {
@@ -307,7 +342,7 @@ function copyOnCmdC(event: KeyboardEvent): boolean {
   return true;
 }
 
-function createTab(): void {
+function createTab(group?: DockviewGroupPanel): void {
   const id = nextId++;
 
   const paneElement = document.createElement("div");
@@ -345,6 +380,10 @@ function createTab(): void {
 
   // inactive: activation happens through the bus below, once the tab is
   // registered, so the activation Event carries a complete snapshot.
+  let position: { referenceGroup: DockviewGroupPanel } | undefined;
+  if (group !== undefined) {
+    position = { referenceGroup: group };
+  }
   handOffPaneElement = paneElement;
   handOffTabElement = tabElement;
   const panel = dockview.api.addPanel({
@@ -353,6 +392,7 @@ function createTab(): void {
     tabComponent: "terminal-tab",
     title: "Untitled",
     inactive: true,
+    position, // undefined targets the active group
   });
 
   const terminal = new Terminal({
@@ -433,7 +473,14 @@ function createTab(): void {
 export function executeCommand(command: Command): void {
   switch (command.type) {
     case "new-tab": {
-      createTab();
+      let group: DockviewGroupPanel | undefined;
+      if (command.groupId !== undefined) {
+        group = findGroup(command.groupId);
+        if (!group) {
+          return;
+        }
+      }
+      createTab(group);
       return;
     }
     case "close-tab": {
@@ -474,13 +521,7 @@ export function executeCommand(command: Command): void {
       }
       let targetGroup = tab.panel.group;
       if (command.groupId !== undefined) {
-        let found: DockviewGroupPanel | undefined;
-        for (const group of dockview.api.groups) {
-          if (group.id === command.groupId) {
-            found = group;
-            break;
-          }
-        }
+        const found = findGroup(command.groupId);
         if (!found) {
           return;
         }
@@ -520,13 +561,7 @@ export function executeCommand(command: Command): void {
       }
       let targetGroup = tab.panel.group;
       if (command.targetGroupId !== undefined) {
-        let found: DockviewGroupPanel | undefined;
-        for (const group of dockview.api.groups) {
-          if (group.id === command.targetGroupId) {
-            found = group;
-            break;
-          }
-        }
+        const found = findGroup(command.targetGroupId);
         if (!found) {
           return;
         }
