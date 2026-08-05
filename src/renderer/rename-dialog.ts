@@ -33,9 +33,9 @@ export function openRenameDialog(id: number): void {
 }
 
 // Double-clicking a tab's title also opens the dialog. Delegated from the
-// tab bar (the tab id rides on each button as data-tab-id) so this module
+// layout root (the tab id rides on each tab as data-tab-id) so this module
 // needs nothing from tabs.ts to hear about clicks.
-requireElement("tabs").addEventListener("dblclick", (event) => {
+requireElement("layout").addEventListener("dblclick", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) {
     return;

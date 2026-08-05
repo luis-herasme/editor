@@ -135,10 +135,11 @@ src/
     menus.ts           app menu + tab context menu — menu items are Command sources
     bus.ts             dispatch() into the renderer; Event intake (the read model)
   renderer/
-    index.html         the page: tab bar, panes, the rename dialog
+    index.html         the page: the layout root, the rename dialog
     index.ts           boot: theme → CSS, cable wiring, the first tab
-    tabs.ts            Tab store + operations + executeCommand (the consumer)
+    tabs.ts            Tab store + executeCommand (the consumer) + Dockview, kept behind both
     rename-dialog.ts   the rename modal
+    dom.ts             requireElement: strict lookups of index.html's fixed elements
 ```
 
 A reader who knows the architecture can predict where anything lives; a
@@ -279,6 +280,29 @@ change it and update this list.
   Double-click a tab is the shortcut to the same modal. Either way the
   rename commits by issuing the same `set-tab-title` Command any client
   would.
+- **The layout engine: Dockview, kept behind the bus.** (Decided 2026-08
+  when tab reordering arrived.) The tab strip and panes are rendered by
+  [Dockview](https://dockview.dev) (`dockview`, the vanilla package), a
+  zero-dependency docking layout manager. It was chosen over hand-rolling
+  because the same drag machinery later gives splits, divider resizing, and
+  drag-a-tab-between-splits, the genuinely hard 20% of that feature. The
+  condition of entry was keeping the command bus as the single write path,
+  and Dockview supports it: every drop fires a cancelable `onWillDrop`
+  *before* any mutation, so tabs.ts cancels the drop, re-issues it as a
+  `move-tab` Command, and the consumer performs the identical move through
+  `panel.api.moveTo()`. A drag therefore enters the editor through the same
+  door as a menu click (see "Drag-and-drop interception" in the glossary).
+  Dockview is confined to tabs.ts and index.html; `api.ts`, the bridge, and
+  main know nothing about it, which is what keeps the provider swappable.
+  Two costs we accept: clicking a tab is activation (focus, not layout) and
+  is applied by Dockview first, announced on the bus afterwards, because
+  blocking that click would also block the drag that starts on the same
+  mousedown; and the library arrives as a classic-script global like
+  xterm.js, plus its stylesheet, retinted from theme.ts by overriding its
+  CSS custom properties. Split-creating gestures are switched off
+  (`onWillShowOverlay` vetoes non-strip drops) until splits are designed
+  for real, a feature that starts with modeling the layout tree in
+  `EditorState`, not with pixels.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
@@ -306,11 +330,14 @@ A quick map so features land on the right side of the cable:
   the bus is the protocol growing point. The public API server (feeding
   `dispatch` from HTTP/WebSocket, streaming Events back) is a main-only
   change.
-- **Protocol changes** (the expensive kind — design first): splits (likely
-  reuses the tab session machinery), config file (a `config:get` message or
-  similar), shell integration/OSC hooks (new main → renderer events),
-  VS Code view (a message telling the renderer what port
-  openvscode-server landed on).
+- **Protocol changes** (the expensive kind — design first): config file (a
+  `config:get` message or similar), shell integration/OSC hooks (new main →
+  renderer events), VS Code view (a message telling the renderer what port
+  openvscode-server landed on). Splits moved down a tier: Dockview already
+  renders them, and each split's terminal reuses the per-tab shell
+  machinery unchanged, so splits are now a bus change (`split` Command, a
+  layout tree in `EditorState`) plus re-enabling the vetoed gestures, with
+  no IPC change.
 
 The rule of thumb: protocol changes get a moment of planning in this doc
 *before* the code is written; the other two kinds can just be built.

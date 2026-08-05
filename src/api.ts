@@ -22,6 +22,9 @@ export type Command =
   | { type: "close-tab"; id?: number }
   | { type: "activate-tab"; id: number }
   | { type: "write"; id?: number; text: string } // type into a terminal
+  // Move a tab to a new position in the tab bar (0 = leftmost). Dragging a
+  // tab issues this same Command; the drag is just another API client.
+  | { type: "move-tab"; id?: number; index: number }
   // Rename a tab. An explicit rename pins the title: later `transient`
   // renames (the shell's automatic OSC titles) are ignored for that tab.
   // An explicit `title: ""` reverts to "Untitled" and unpins.
@@ -33,6 +36,7 @@ export type EditorEvent =
   | { type: "tab-opened"; id: number; state: EditorState }
   | { type: "tab-closed"; id: number; state: EditorState }
   | { type: "tab-retitled"; id: number; state: EditorState }
+  | { type: "tab-moved"; id: number; state: EditorState }
   | { type: "tab-activated"; id: number; state: EditorState };
 
 export interface TabInfo {

@@ -272,3 +272,30 @@ set their own while running. The title is therefore not something the emulator
 invents — the programs inside announce it, and the emulator just displays the
 latest announcement. xterm.js parses the sequence out of the byte stream and
 hands us the text as an `onTitleChange` event.
+
+## Docking layout manager
+
+A UI component that owns a region of the page and manages a tree of panes
+inside it: each pane has a tab strip, tabs can be dragged to reorder or to
+another pane, panes can be split and resized with draggable dividers, and
+the whole arrangement can be saved and restored. The pattern is what makes
+VS Code's editor area feel the way it does. This project uses
+[Dockview](https://dockview.dev): our tab bar and terminal panes are Dockview
+"panels", though today everything lives in a single group with the
+split-creating gestures switched off until splits are a real feature.
+
+## Drag-and-drop interception (the one-door rule)
+
+How Dockview stays subordinate to the command bus. A docking library
+normally applies a drag itself: you drop a tab, the library mutates its
+layout, and the application finds out afterwards. That would make gestures
+a second write path around the bus. Dockview instead exposes `onWillDrop`,
+which fires *before* it mutates anything and can be cancelled. We cancel
+every drop, translate it into the equivalent Command (`move-tab`), and
+dispatch that through `executeCommand`, which performs the identical move
+via Dockview's programmatic API (`panel.api.moveTo`). The gesture becomes
+just another Command source — same door as the menus, the devtools console,
+and the future agent. The one exception is clicking a tab to activate it:
+that's focus, not layout, and the mousedown that activates is the same one
+that begins a drag, so activation is applied by Dockview and announced on
+the bus afterwards as a `tab-activated` Event.

@@ -8,7 +8,6 @@ import { THEME } from "../theme.js";
 import type { Command } from "../api.js";
 import { executeCommand, handleShellData, handleShellExit } from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
-import { requireElement } from "./dom.js";
 
 // CSS can't read THEME directly, so every entry is handed over as a custom
 // property, camelCase key to kebab-case var (tabBarBackground becomes
@@ -33,9 +32,5 @@ declare global {
   }
 }
 window.editor = { command: executeCommand };
-
-requireElement("new-tab").addEventListener("click", () => {
-  executeCommand({ type: "new-tab" });
-});
 
 executeCommand({ type: "new-tab" }); // the first tab; this boots the first shell
