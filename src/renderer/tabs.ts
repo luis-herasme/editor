@@ -89,13 +89,15 @@ const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
       init: () => {},
     };
   },
-  createRightHeaderActionComponent: () => {
+  // Called once per group: every pane's strip gets its own + button, and
+  // each button opens the tab in its own group, not the active one.
+  createRightHeaderActionComponent: (group) => {
     const button = document.createElement("button");
-    button.id = "new-tab";
+    button.className = "new-tab";
     button.title = "New Tab (⌘T)";
     button.textContent = "+";
     button.addEventListener("click", () => {
-      executeCommand({ type: "new-tab" });
+      executeCommand({ type: "new-tab", groupId: group.id });
     });
     return {
       element: button,
