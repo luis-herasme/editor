@@ -98,4 +98,5 @@ export const DEFAULT_SETTINGS = {
   theme: "dark",
   fontFamily: "Menlo, monospace",
   fontSize: 13,
+  uiFontFamily: "system-ui",
 } satisfies Settings & { theme: ThemeName };

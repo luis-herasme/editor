@@ -312,8 +312,9 @@ change it and update this list.
   not modeled, so resizing a split emits no Event.
 - **Settings: themes and fonts, runtime-changeable, behind the bus.**
   (Extends the theme.ts decision: the single `THEME` const became `THEMES`,
-  a set of named palettes, plus `Settings` — which palette is active, font
-  family, font size.) The current value lives in `renderer/settings.ts`
+  a set of named palettes, plus `Settings` — which palette is active, the
+  terminal's font family and size, and the UI font used by everything
+  else.) The current value lives in `renderer/settings.ts`
   and persists in localStorage: settings are renderer-only state, so no
   IPC message was needed — the first entry from the "renderer-only"
   feature list to ship. Changes enter as an `update-settings` Command

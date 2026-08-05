@@ -12,6 +12,10 @@ const dialog = requireElement("settings-dialog", HTMLDialogElement);
 const themeSelect = requireElement("settings-theme", HTMLSelectElement);
 const fontFamilyInput = requireElement("settings-font-family", HTMLInputElement);
 const fontSizeInput = requireElement("settings-font-size", HTMLInputElement);
+const uiFontFamilyInput = requireElement(
+  "settings-ui-font-family",
+  HTMLInputElement,
+);
 
 // One <option> per theme: THEMES stays the single source, the display
 // name is derived from the key ("solarized-dark" → "Solarized Dark")
@@ -32,6 +36,7 @@ function showCurrentSettings(): void {
   themeSelect.value = settings.theme;
   fontFamilyInput.value = settings.fontFamily;
   fontSizeInput.value = String(settings.fontSize);
+  uiFontFamilyInput.value = settings.uiFontFamily;
 }
 
 requireElement("settings-button").addEventListener("click", () => {
@@ -59,6 +64,14 @@ fontSizeInput.addEventListener("change", () => {
   executeCommand({
     type: "update-settings",
     settings: { fontSize: Number(fontSizeInput.value) },
+  });
+  showCurrentSettings();
+});
+
+uiFontFamilyInput.addEventListener("change", () => {
+  executeCommand({
+    type: "update-settings",
+    settings: { uiFontFamily: uiFontFamilyInput.value },
   });
   showCurrentSettings();
 });

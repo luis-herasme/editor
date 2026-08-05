@@ -27,10 +27,20 @@
            itself (like scrollbars) matches; the value comes from the
            active theme, like every color here */
         color-scheme: var(--color-scheme);
+        /* Grayscale antialiasing instead of macOS's stem darkening:
+           thinner, crisper glyphs (the VS Code look). Measured: this is
+           the only text-rendering property that changes any pixel here —
+           optimizeLegibility does nothing for a ligature-less monospace
+           grid. Inherits into xterm's DOM-rendered rows. */
+        -webkit-font-smoothing: antialiased;
       }
       body {
         display: flex;
         flex-direction: column;
+        /* The inherited default for anything without its own font rule
+           (xterm's grid ignores this: it draws with its fontFamily
+           option). Without it, unstyled text falls back to Times. */
+        font-family: var(--ui-font-family);
       }
       /* The native title bar is hidden (titleBarStyle: hiddenInset in
          main/index.ts); this strip takes its place. -webkit-app-region:
@@ -47,7 +57,7 @@
         -webkit-app-region: drag;
         background: var(--title-bar-background);
         color: var(--tab-active-foreground);
-        font: 600 13px system-ui;
+        font: 600 13px var(--ui-font-family);
       }
       /* Below the title bar: the sidebar and the layout, side by side */
       #workspace {
@@ -151,7 +161,7 @@
         align-items: center;
         gap: 6px;
         height: 100%;
-        font-family: system-ui;
+        font-family: var(--ui-font-family);
       }
       /* Shell-set titles can be long paths; cut them off with an ellipsis
          instead of letting one tab swallow the bar */
@@ -167,7 +177,7 @@
       }
       .new-tab {
         font-size: 15px;
-        font-family: system-ui;
+        font-family: var(--ui-font-family);
         color: var(--tab-foreground);
         background: transparent;
         border: none;
@@ -184,7 +194,7 @@
         border-radius: 10px;
         padding: 16px;
         width: 260px;
-        font-family: system-ui;
+        font-family: var(--ui-font-family);
       }
       dialog::backdrop {
         background: rgba(0, 0, 0, 0.35);
@@ -199,7 +209,7 @@
         box-sizing: border-box;
         width: 100%;
         padding: 5px 8px;
-        font: 13px system-ui;
+        font: 13px var(--ui-font-family);
         color: inherit;
         background: var(--background);
         border: 1px solid var(--separator);
@@ -233,7 +243,7 @@
         margin-top: 14px;
       }
       .dialog-buttons button {
-        font: 12px system-ui;
+        font: 12px var(--ui-font-family);
         color: inherit;
         background: var(--separator);
         border: none;
@@ -296,12 +306,16 @@
         <select id="settings-theme"></select>
       </label>
       <label class="settings-row">
-        Font family
+        Terminal font
         <input id="settings-font-family" type="text" spellcheck="false" />
       </label>
       <label class="settings-row">
         Font size
         <input id="settings-font-size" type="number" min="8" max="32" />
+      </label>
+      <label class="settings-row">
+        UI font
+        <input id="settings-ui-font-family" type="text" spellcheck="false" />
       </label>
       <div class="dialog-buttons">
         <button id="settings-done" class="default">Done</button>

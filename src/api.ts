@@ -61,11 +61,13 @@ export type EditorEvent =
 // What the user can adjust at runtime. `theme` names an entry in
 // theme.ts's THEMES ("dark", "light", ...); it stays a plain string here
 // so this file keeps exporting types only — the consumer validates the
-// name at runtime.
+// name at runtime. `fontFamily`/`fontSize` are the terminal's;
+// `uiFontFamily` is everything else (tabs, title bar, dialogs).
 export interface Settings {
   theme: string;
   fontFamily: string;
   fontSize: number;
+  uiFontFamily: string;
 }
 
 export interface TabInfo {

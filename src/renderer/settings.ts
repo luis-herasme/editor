@@ -35,6 +35,11 @@ const settingsSchema = z
       .refine((name) => name in themesByName)
       .catch(DEFAULT_SETTINGS.theme),
     fontFamily: z.string().trim().min(1).catch(DEFAULT_SETTINGS.fontFamily),
+    uiFontFamily: z
+      .string()
+      .trim()
+      .min(1)
+      .catch(DEFAULT_SETTINGS.uiFontFamily),
     fontSize: z
       .number() // rejects NaN and ±Infinity by itself
       .transform((size) => Math.min(32, Math.max(8, Math.round(size))))
@@ -84,6 +89,7 @@ export function applyCssVariables(): void {
     ...currentTheme(),
     fontFamily: settings.fontFamily,
     fontSize: settings.fontSize,
+    uiFontFamily: settings.uiFontFamily,
   };
   for (const [key, value] of Object.entries(values)) {
     const cssName =
