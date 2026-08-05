@@ -43,10 +43,10 @@ flowchart LR
 
 All arrows between the processes pass through `window.bridge`, which
 `src/ipc/preload.cts` exposes to the page. (The bridge also carries the
-command bus and the tab context menu — the full contract is
+command bus and the tab context menu; the full contract is
 `src/ipc/bridge.ts`.)
 
-Life of a keystroke — you press `l`:
+Life of a keystroke, starting when you press `l`:
 
 ```mermaid
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     X->>X: parse escape sequences, draw "l"
 ```
 
-The character you see is drawn in the *last* step, not the first — like the
+The character you see is drawn in the *last* step, not the first: like the
 original hardware terminals, nothing appears on screen until the program on
 the other end echoes it back.
 
@@ -98,7 +98,7 @@ features we don't have yet. Features get added when we need them.
 ## Driving the editor
 
 Everything the editor can do is a Command, and everything that happens is
-an Event — the unions in [src/api.ts](src/api.ts) are the whole public
+an Event. The unions in [src/api.ts](src/api.ts) are the whole public
 interface, and the UI itself is just its first client. Try it from the
 devtools console (⌥⌘I):
 
