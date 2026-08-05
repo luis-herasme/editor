@@ -89,6 +89,7 @@ the other end echoes it back.
 | `src/renderer/rename-dialog.ts`| The rename modal                                             |
 | `src/renderer/settings.ts`     | Current settings: value, localStorage persistence, → CSS     |
 | `src/renderer/settings-dialog.ts`| The settings modal (each control issues a Command)         |
+| `src/renderer/dom.ts`          | `requireElement`: strict, typed lookups of the page's fixed elements |
 | `tsconfig.json`                | Compiler settings; `tsc` mirrors `src/` into `dist/` 1:1     |
 
 There is deliberately no bundler, no framework, and no abstraction for
@@ -110,4 +111,3 @@ editor.command({ type: "close-tab" })
 The endgame (see ARCHITECTURE.md, "The command bus") is a local server in
 the main process feeding the same bus, so an agent can fully drive the
 editor.
-# editor

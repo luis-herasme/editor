@@ -310,7 +310,21 @@ change it and update this list.
   the consumer replays both through `moveTo()`. Deliberately still off:
   window-edge drops (Dockview has no public root-relative placement API)
   and whole-group drags, until a feature needs them; divider sizes are
-  not modeled, so resizing a split emits no Event.
+  not modeled, so resizing a split emits no Event; and Dockview's built-in
+  tab-overflow dropdown is disabled, because it cannot render our custom
+  tab components (the strip scrolls instead).
+- **The title bar is painted, not native.** (Decided 2026-08.) macOS
+  offers no way to recolor the standard title bar, so the window is
+  created with `titleBarStyle: "hiddenInset"`: the traffic lights stay
+  native, drawn inset over the page, and the page's own `#title-bar`
+  strip takes over the rest (the theme's color, the centered title, and
+  `-webkit-app-region: drag`, which keeps the native behaviors: dragging
+  moves the window, double-click zooms it; see "Drag region" in the
+  glossary). The tab strip stays below the title bar rather than merging
+  into it: a merged strip would need its empty space as the drag handle,
+  and a drag region's pixels are deaf to the page, which would have
+  killed double-click-to-open-a-tab. Cost we accept: one strip of
+  vertical space a merged design would save.
 - **Settings: themes and fonts, runtime-changeable, behind the bus.**
   (Extends the theme.ts decision: the single `THEME` const became `THEMES`,
   a set of named palettes, plus `Settings` — which palette is active, the

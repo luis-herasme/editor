@@ -193,6 +193,19 @@ it the bridge for handing a script's values to stylesheets — CSS has no way
 to read JavaScript on its own. Ours carry the scrollbar colors from theme.ts
 into index.html's styles.
 
+## Drag region / hiddenInset
+
+How an app paints its own title bar on macOS. Creating the Electron
+window with `titleBarStyle: "hiddenInset"` hides the standard title bar:
+the traffic lights remain, drawn by macOS inset over the page, and the
+page extends to the window's top edge, free to paint its own strip any
+color. The CSS property `-webkit-app-region: drag` then marks an element
+as a **drag region**: its mouse events go to the window manager instead
+of the page, which restores the native title-bar behaviors (dragging
+moves the window, double-click zooms it). The trade is that a drag
+region's pixels are deaf to the page, so nothing inside one can react to
+clicks. Our painted `#title-bar` is exactly this pattern.
+
 ## Character cell / grid
 
 A terminal screen is not free-form text — it's a rigid grid of equal-size
