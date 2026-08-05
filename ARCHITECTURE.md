@@ -210,6 +210,17 @@ change it and update this list.
   paths must spell out the compiled `.js` extension (Node ESM and browsers
   both demand it), and xterm.js still arrives as classic-script globals
   because that's how the package ships.
+- **Tab titles come from the programs inside, via OSC.** A terminal doesn't
+  name its own tabs: the shell (or vim, or ssh) emits an OSC title sequence
+  (see glossary) mixed into its ordinary output, and the emulator displays
+  the latest one. We had penciled "OSC hooks" in as a protocol change below,
+  but titles needed none — the bytes already cross the cable as terminal
+  output, and xterm.js parses them on the screen side, firing
+  `onTitleChange` in the renderer. That handler issues a `set-tab-title`
+  Command like any other client, so external callers can rename tabs the
+  same way the shell does, and every rename emits a `tab-retitled` Event.
+  A tab whose title is `""` (none set yet, or cleared) falls back to a
+  positional "Untitled-n" label, following VS Code's convention.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)

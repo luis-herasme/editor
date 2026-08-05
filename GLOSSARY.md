@@ -247,3 +247,17 @@ not a design, it's a countdown.
 The lines that have scrolled off the top of the screen. The physical VT100 had
 none — text was gone forever. Emulators keep a buffer of them (xterm.js
 defaults to 1000 lines) so you can scroll up.
+
+## OSC (Operating System Command)
+
+The family of escape sequences addressed to the terminal *program* rather than
+the screen. Ordinary escape codes do things the VT100's hardware did — move
+the cursor, color text. OSC sequences (they start with `ESC ]`) ask for things
+only the surrounding software can do, and the classic one is the window title:
+`ESC ] 0 ; hello BEL` means "call this window *hello*". Try it yourself:
+`printf '\e]0;hello\a'`. Configured shells emit one before every prompt
+(naming the tab after the current directory), and programs like vim and ssh
+set their own while running. The title is therefore not something the emulator
+invents — the programs inside announce it, and the emulator just displays the
+latest announcement. xterm.js parses the sequence out of the byte stream and
+hands us the text as an `onTitleChange` event.

@@ -33,7 +33,8 @@ interface Tab {
   term: XtermTerminal
   pane: HTMLElement // the terminal's container; hidden unless active
   button: HTMLElement // its entry in the tab bar
-  label: HTMLElement // the button's text — position-based, see renumberTabs
+  label: HTMLElement // the button's text — see renderLabels
+  title: string // what the shell asked to be called (OSC); "" = no title yet
   observer: ResizeObserver // re-fits the grid when the pane's box changes
 }
 
@@ -44,11 +45,13 @@ let activeId = -1
 const tabsEl = document.getElementById("tabs")!
 const panesEl = document.getElementById("terminals")!
 
-// Labels follow position, not session id: ids are never reused, so an
-// id-derived label would creep upward forever as tabs close.
-function renumberTabs(): void {
+// A tab is labeled by its title if the shell has set one (see the OSC entry
+// in GLOSSARY.md), else "Untitled-n" (VS Code's convention), numbered by
+// position, not session id: ids are never reused, so an id-derived number
+// would creep upward forever as tabs close.
+function renderLabels(): void {
   let n = 1
-  for (const tab of tabs.values()) tab.label.textContent = `Tab ${n++}`
+  for (const tab of tabs.values()) tab.label.textContent = tab.title || `Untitled-${n++}`
 }
 
 // Every Event carries one of these: the whole visible truth, so observers
@@ -94,6 +97,7 @@ function createTab(): void {
   panesEl.appendChild(pane)
 
   const label = document.createElement("span")
+  label.className = "tab-label"
   const close = document.createElement("span")
   close.className = "tab-close"
   close.textContent = "×"
@@ -124,8 +128,8 @@ function createTab(): void {
   const observer = new ResizeObserver(() => fit.fit())
   observer.observe(pane)
 
-  tabs.set(id, { term, pane, button, label, observer })
-  renumberTabs()
+  tabs.set(id, { term, pane, button, label, title: "", observer })
+  renderLabels()
   window.terminal.emitEvent({ type: "tab-opened", id, state: snapshot() })
 
   // xterm can only measure a visible container, so show the new tab first,
@@ -142,6 +146,11 @@ function createTab(): void {
   term.onData((data) => window.terminal.sendInput(id, data))
   term.onResize(({ cols, rows }) => window.terminal.resize(id, cols, rows))
   term.attachCustomKeyEventHandler(copyOnCmdC)
+
+  // Programs name their own tab: they emit an OSC title sequence (see
+  // GLOSSARY.md) mixed into ordinary output, xterm parses it out, and we
+  // route it through the bus — the shell is just another API client.
+  term.onTitleChange((title) => executeCommand({ type: "set-tab-title", id, title }))
 }
 
 // The command consumer — the single place a Command becomes editor behavior
@@ -160,6 +169,14 @@ function executeCommand(command: Command): void {
       return activateTab(command.id)
     case "write":
       return window.terminal.sendInput(command.id ?? activeId, command.text)
+    case "set-tab-title": {
+      const id = command.id ?? activeId
+      const tab = tabs.get(id)
+      if (!tab) return
+      tab.title = command.title
+      renderLabels()
+      return window.terminal.emitEvent({ type: "tab-retitled", id, state: snapshot() })
+    }
   }
 }
 
@@ -189,7 +206,7 @@ window.terminal.onExit((id) => {
   tab.term.dispose()
   tab.pane.remove()
   tab.button.remove()
-  renumberTabs()
+  renderLabels()
   if (id === activeId) activeId = -1 // it's gone; a neighbor is activated below
   window.terminal.emitEvent({ type: "tab-closed", id, state: snapshot() })
   if (activeId === -1) activateTab([...tabs.keys()].at(-1) ?? -1)

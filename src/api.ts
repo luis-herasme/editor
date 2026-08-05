@@ -22,6 +22,7 @@ export type Command =
   | { type: "close-tab"; id?: number }
   | { type: "activate-tab"; id: number }
   | { type: "write"; id?: number; text: string } // type into a terminal
+  | { type: "set-tab-title"; id?: number; title: string } // "" reverts to "Untitled-n"
 
 // Facts, out of the editor. Every event carries the state it produced,
 // so whatever an observer heard last is the whole truth.
@@ -29,6 +30,7 @@ export type EditorEvent =
   | { type: "tab-opened"; id: number; state: EditorState }
   | { type: "tab-closed"; id: number; state: EditorState }
   | { type: "tab-activated"; id: number; state: EditorState }
+  | { type: "tab-retitled"; id: number; state: EditorState }
 
 export interface EditorState {
   tabs: { id: number; label: string }[]

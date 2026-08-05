@@ -56,6 +56,14 @@
         background: var(--background);
         color: var(--tab-active-foreground);
       }
+      /* Shell-set titles can be long paths; cut them off with an ellipsis
+         instead of letting one tab swallow the bar */
+      .tab-label {
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       /* The × inherits its tab's dim color; brighten it on hover */
       .tab-close:hover {
         color: var(--tab-active-foreground);
