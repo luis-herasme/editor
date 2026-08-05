@@ -145,6 +145,29 @@ creates at runtime) and of the `Terminal`/`FitAddon` globals (which the
 xterm.js script tags create). It's how the compiler learns about the world
 outside the compiled files.
 
+## Script vs. module
+
+JavaScript files come in two flavors, and a file's flavor decides how values
+get in and out of it. A **module** has private scope: nothing leaks out, and
+others reach its values with `import`. A **classic script** (loaded with a
+plain `<script>` tag) is the older flavor: its top-level declarations land in
+a scope shared by every other script on the page — that's why xterm's script
+tag makes `Terminal` just *appear* as a global in renderer.ts. Modules
+themselves come in two dialects: **ES modules** (`import`/`export`, the
+standard, what this project uses everywhere) and **CommonJS**
+(`require()`/`module.exports`, Node's older invention). Our one CommonJS
+file is the preload script, because Electron's sandbox demands it: naming it
+`preload.cts` makes tsc emit that single file as `.cjs` (CommonJS) while its
+source still reads as `import`.
+
+## CSS custom property
+
+A variable in CSS: declared as `--name: value`, read as `var(--name)`.
+JavaScript can set one at runtime (`element.style.setProperty`), which makes
+it the bridge for handing a script's values to stylesheets — CSS has no way
+to read JavaScript on its own. Ours carry the scrollbar colors from theme.ts
+into index.html's styles.
+
 ## Character cell / grid
 
 A terminal screen is not free-form text — it's a rigid grid of equal-size

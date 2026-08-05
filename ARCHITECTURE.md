@@ -48,7 +48,7 @@ does this belong on, and does the cable need to change?**
 ## The boundary
 
 The entire contract between the two halves is `window.terminal`, defined in
-`preload.js`:
+`preload.cts`:
 
 ```
 sendInput(data)        renderer → main   "the user typed these bytes"
@@ -65,7 +65,7 @@ Rules that keep this boundary healthy:
    (processes, files, clipboard writes are the one pragmatic exception)
    belongs in main.
 3. **Grow the protocol, don't bypass it.** A new capability means a new,
-   explicitly named message in `preload.js` — never widening the sandbox or
+   explicitly named message in `preload.cts` — never widening the sandbox or
    exposing Node.js to the page.
 
 This is also the security model (see "Preload script" in the glossary): the
@@ -107,6 +107,33 @@ change it and update this list.
   emulation. (If we ever want to *learn* the parsing, we can write a toy
   parser on the side without touching the app.)
 
+- **Visual settings live in `src/theme.ts`, a plain-script global.** The
+  background color had quietly spread to three places in three languages —
+  the window (`main.ts`), the page (`index.html` CSS), and xterm's theme
+  (`renderer.ts`) — that all had to agree by hand. Now `THEME` is defined
+  once: main.ts and renderer.ts import it like any other value; CSS gets its
+  colors (page background, scrollbar) pushed in as custom properties, since
+  CSS can't read JavaScript. A failed idea worth remembering: we first left
+  the page background off entirely, expecting the window's `backgroundColor`
+  to show through a transparent page. It doesn't — Chromium paints its own
+  canvas behind every page (white, or near-black under `color-scheme: dark`),
+  so the visible mismatch came back until the page painted the theme color
+  itself.
+- **Native ES modules — no CommonJS, no `require`, in our source.**
+  (Replaced the original CommonJS emit; decided together with theme.ts.)
+  Sharing the first runtime value between browser and Node exposed the cost
+  of CommonJS output: a shared file needed the hand-rolled UMD trick — a
+  plain-script global for the page plus a `module.exports` guard for
+  `require()`. That wart is the smell of a missing module system, and the
+  platform ships one: `"type": "module"` in package.json makes Electron run
+  our output as ES modules, and the browser loads renderer.js with
+  `<script type="module">` — still no bundler. The one exception is
+  preload: Electron's sandbox requires it to be CommonJS, so it is named
+  `preload.cts` — the extension tells tsc to emit that single file as
+  `.cjs`, while its source still reads as `import`. Costs we accept: import
+  paths must spell out the compiled `.js` extension (Node ESM and browsers
+  both demand it), and xterm.js still arrives as classic-script globals
+  because that's how the package ships.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)

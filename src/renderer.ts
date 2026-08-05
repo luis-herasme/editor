@@ -1,19 +1,24 @@
 // Renderer: sets up xterm.js and wires it to the shell via window.terminal
-// (the bridge defined in preload.ts). xterm.js only draws the screen and
+// (the bridge defined in preload.cts). xterm.js only draws the screen and
 // captures keys — the real work happens in the shell, in the main process.
 //
-// Note: no imports here. This file compiles to a plain browser script;
-// Terminal and FitAddon are globals from the <script> tags in index.html
-// (typed in bridge.d.ts).
+// This file runs as a native ES module (<script type="module"> in
+// index.html), so it can import. Terminal and FitAddon are still globals
+// from classic <script> tags (typed in bridge.d.ts).
+import { THEME } from "./theme.js"
+
 const term = new Terminal({
-  fontFamily: 'Menlo, monospace',
-  fontSize: 13,
+  fontFamily: THEME.fontFamily,
+  fontSize: THEME.fontSize,
   cursorBlink: true,
-  // Match the page background (index.html). The screen is a whole number of
-  // character cells, so the window always has a few leftover pixels around
-  // it — same color everywhere makes that remainder invisible.
-  theme: { background: '#1e1e1e' },
+  theme: { background: THEME.background },
 })
+
+// CSS can't read THEME directly, so hand it the colors it needs as custom
+// properties — index.html paints the page and scrollbar with var(...).
+document.documentElement.style.setProperty('--background', THEME.background)
+document.documentElement.style.setProperty('--scrollbar-thumb', THEME.scrollbarThumb)
+document.documentElement.style.setProperty('--scrollbar-thumb-hover', THEME.scrollbarThumbHover)
 const fitAddon = new FitAddon.FitAddon()
 term.loadAddon(fitAddon)
 term.open(document.getElementById('terminal')!)

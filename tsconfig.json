@@ -4,10 +4,13 @@
     "rootDir": "src",
     "outDir": "dist",
 
-    // Emit CommonJS (require/exports) — what Electron's main and preload
-    // expect. renderer.ts avoids imports entirely, so its output is a
-    // plain browser script.
-    "module": "commonjs",
+    // The whole project is native ES modules ("type": "module" in
+    // package.json): the browser runs renderer.js via <script type="module">,
+    // Electron's main process runs main.js as ESM directly. The one
+    // exception is preload.cts — Electron's sandbox requires preload to be
+    // CommonJS, and the .cts extension tells tsc to emit that one file as
+    // .cjs while its source still uses import syntax.
+    "module": "nodenext",
     "target": "es2022",
 
     // The renderer needs browser types (DOM); main needs Node types.

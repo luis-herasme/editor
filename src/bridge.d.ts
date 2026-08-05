@@ -1,13 +1,13 @@
 // Type declarations shared by both sides of the IPC boundary.
 // A .d.ts file contains only types — it produces no JavaScript. This one
 // makes the contract from ARCHITECTURE.md ("The boundary") checkable:
-// if preload.ts and renderer.ts ever disagree about the bridge's shape,
+// if preload.cts and renderer.ts ever disagree about the bridge's shape,
 // tsc refuses to compile.
 import type { Terminal as XtermTerminal } from '@xterm/xterm'
 import type { FitAddon as XtermFitAddon } from '@xterm/addon-fit'
 
 declare global {
-  // The three-function bridge exposed by preload.ts as window.terminal
+  // The three-function bridge exposed by preload.cts as window.terminal
   interface TerminalBridge {
     sendInput: (data: string) => void
     resize: (cols: number, rows: number) => void

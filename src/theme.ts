@@ -1,0 +1,15 @@
+// The single source of truth for visual settings. Three worlds draw
+// something, and all three read from here: main.ts (the window) and
+// renderer.ts (xterm) import THEME directly; CSS gets the colors it needs
+// as custom properties, set by renderer.ts.
+export const THEME = {
+  // One color for the window, the page, and xterm's cells. The screen is a
+  // whole number of character cells, so a few leftover pixels always exist
+  // around it — same color everywhere makes that remainder invisible.
+  background: "#1e1e1e",
+  fontFamily: "Menlo, monospace",
+  fontSize: 13,
+  // Slim translucent scrollbar thumb, like a native macOS overlay scrollbar
+  scrollbarThumb: "rgba(255, 255, 255, 0.25)",
+  scrollbarThumbHover: "rgba(255, 255, 255, 0.45)",
+} as const

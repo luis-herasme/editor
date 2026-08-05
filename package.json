@@ -2,6 +2,7 @@
   "name": "editor-terminal",
   "version": "0.1.0",
   "description": "A minimal terminal emulator built with Electron and xterm.js, as a learning project",
+  "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "start": "tsc && electron .",

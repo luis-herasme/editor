@@ -37,7 +37,7 @@ flowchart LR
 ```
 
 All three arrows between the processes pass through `window.terminal`, the
-three-function bridge that `preload.ts` exposes to the page.
+three-function bridge that `preload.cts` exposes to the page.
 
 Life of a keystroke — you press `l`:
 
@@ -68,8 +68,9 @@ the other end echoes it back.
 | File              | Role                                                              |
 | ----------------- | ----------------------------------------------------------------- |
 | `src/main.ts`     | Main process: opens the window, spawns zsh in a PTY, relays bytes |
-| `src/preload.ts`  | Security bridge: exposes exactly 3 functions as `window.terminal` |
+| `src/preload.cts` | Security bridge: exposes exactly 3 functions as `window.terminal` |
 | `src/renderer.ts` | Sets up xterm.js and wires it to `window.terminal`                |
+| `src/theme.ts`    | All visual settings (colors, font) in one importable place        |
 | `src/bridge.d.ts` | The IPC contract as a type, shared by preload and renderer        |
 | `src/index.html`  | The page: one `<div>`, xterm's CSS/JS via script tags             |
 | `tsconfig.json`   | Compiler settings; `tsc` emits `src/*.ts` → `dist/*.js` 1:1       |

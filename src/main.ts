@@ -4,14 +4,20 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import * as os from "os";
 import * as pty from "node-pty";
+import { THEME } from "./theme.js";
 
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 900,
     height: 600,
-    backgroundColor: "#1e1e1e",
+    // Shown until the page's first paint — the same THEME color the page
+    // then paints itself, so startup doesn't flash a different color.
+    backgroundColor: THEME.background,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      // preload.cjs, not .js: Electron's sandbox requires CommonJS there,
+      // so preload.cts is the one file tsc emits as CommonJS.
+      // (import.meta.dirname is ESM's replacement for CommonJS's __dirname.)
+      preload: path.join(import.meta.dirname, "preload.cjs"),
     },
   });
 
@@ -43,7 +49,7 @@ function createWindow(): void {
   // it safe to spawn the shell: output sent to a page that isn't listening
   // yet would be silently lost (a startup race we'd usually win, because
   // zsh boots slower than the page, but "usually" isn't a design).
-  win.loadFile(path.join(__dirname, "../src/index.html")).then(() => {
+  win.loadFile(path.join(import.meta.dirname, "../src/index.html")).then(() => {
     if (win.isDestroyed()) return;
 
     // Spawn the user's shell inside a pseudo-terminal (PTY), not a plain
