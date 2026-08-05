@@ -31,6 +31,23 @@
         display: flex;
         flex-direction: column;
       }
+      /* The native title bar is hidden (titleBarStyle: hiddenInset in
+         main/index.ts); this strip takes its place. -webkit-app-region:
+         drag hands its mouse events to macOS, which keeps the native
+         title-bar behaviors: drag moves the window, double-click zooms
+         it. The traffic lights are still native, drawn by macOS inset
+         over the strip's left edge. */
+      #title-bar {
+        flex: none;
+        height: 36px; /* vertically centers the inset traffic lights */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-app-region: drag;
+        background: var(--title-bar-background);
+        color: var(--tab-active-foreground);
+        font: 600 13px system-ui;
+      }
       /* Dockview owns everything below the window chrome: tab strip on top,
          panes filling the rest */
       #layout {
@@ -215,6 +232,8 @@
         </div>
       </form>
     </dialog>
+    <!-- The painted title bar (see its CSS rule above) -->
+    <div id="title-bar">Terminal</div>
     <!-- Dockview renders the tab strip and panes in here (see tabs.ts) -->
     <div id="layout"></div>
     <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>

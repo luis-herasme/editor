@@ -63,6 +63,10 @@ const dockviewLibrary = window.dockview;
 const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
   theme: dockviewLibrary.themeDark,
   disableFloatingGroups: true,
+  // When tabs overflow the strip, Dockview shows a chevron+count dropdown
+  // listing the hidden ones; ours renders custom tab components it can't
+  // reproduce, so the list comes up broken. Scrolling the strip stays.
+  disableTabsOverflowList: true,
   createComponent: () => {
     const element = handOffPaneElement;
     handOffPaneElement = undefined;

@@ -14,6 +14,10 @@ function createWindow(): void {
     // Shown until the page's first paint: the same THEME color the page
     // then paints itself, so startup doesn't flash a different color.
     backgroundColor: THEME.background,
+    // macOS offers no way to recolor the standard title bar, so hide it:
+    // the traffic lights stay (inset over the page), and the page's own
+    // #title-bar strip takes over the rest (color, title, drag region).
+    titleBarStyle: "hiddenInset",
     webPreferences: {
       // preload.cjs, not .js: Electron's sandbox requires CommonJS there,
       // so preload.cts is the one file tsc emits as CommonJS.

@@ -15,6 +15,10 @@ export const THEME = {
   // Tab bar: darker than the terminal, so the active tab (which shares the
   // terminal's background) reads as connected to it.
   tabBarBackground: "#161616",
+  // The window's top strip (the native title bar is hidden; index.html
+  // paints this one). Same surface as the tab bar: title bar, strip and
+  // tabs read as one piece of chrome above the terminal.
+  titleBarBackground: "#161616",
   tabForeground: "#8a8a8a",
   tabActiveForeground: "#e6e6e6",
   // Hairline separators: between tabs in the strip, and between split panes
