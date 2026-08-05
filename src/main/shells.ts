@@ -2,6 +2,7 @@
 // can't spawn processes; importing this module registers the shell half of
 // the IPC protocol.
 import { BrowserWindow, ipcMain } from "electron";
+import { execFile } from "child_process";
 import * as os from "os";
 import * as pty from "node-pty";
 import type { ShellDataMessage, ShellSizeMessage } from "../ipc/bridge.js";
@@ -65,6 +66,34 @@ ipcMain.on("shell:resize", (_event, size: ShellSizeMessage) => {
 ipcMain.on("shell:kill", (_event, id: number) => {
   shells.get(id)?.kill();
 });
+
+// A tab's shell cwd, asked of the OS at call time (lsof on the PTY's
+// process): works with any shell, no shell configuration needed.
+export function getShellCwd(id: number): Promise<string | undefined> {
+  const shell = shells.get(id);
+  if (!shell) {
+    return Promise.resolve(undefined);
+  }
+  return new Promise((resolve) => {
+    execFile(
+      "lsof",
+      ["-a", "-p", String(shell.pid), "-d", "cwd", "-F", "n"],
+      (error, stdout) => {
+        if (error) {
+          resolve(undefined);
+          return;
+        }
+        for (const line of stdout.split("\n")) {
+          if (line.startsWith("n")) {
+            resolve(line.slice(1));
+            return;
+          }
+        }
+        resolve(undefined);
+      },
+    );
+  });
+}
 
 // closing the window leaves no orphan processes
 export function killAllShells(): void {

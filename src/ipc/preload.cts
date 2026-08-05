@@ -21,6 +21,7 @@ const bridge: Bridge = {
   showTabMenu: (id) => ipcRenderer.send("tab:menu", id),
   onRenameRequest: (callback) =>
     ipcRenderer.on("tab:rename-request", (_event, id) => callback(id)),
+  readFile: (request) => ipcRenderer.invoke("file:read", request),
 };
 
 contextBridge.exposeInMainWorld("bridge", bridge);

@@ -15,6 +15,17 @@ export interface ShellDataMessage {
   data: string;
 }
 
+// the markdown view's file access; a relative path resolves against the
+// shell cwd of `baseTabId`
+export interface ReadFileRequest {
+  path: string;
+  baseTabId?: number;
+}
+
+export type ReadFileResult =
+  | { resolvedPath: string; content: string }
+  | { error: string };
+
 // The one channel between the two sides, exposed by preload.cts as
 // window.bridge. The shell protocol carries only bytes, sizes and tab ids;
 // the command bus is the one structured channel.
@@ -29,6 +40,8 @@ export interface Bridge {
   emitEvent: (event: EditorEvent) => void;
   showTabMenu: (id: number) => void; // main shows the native context menu
   onRenameRequest: (callback: (id: number) => void) => void;
+  // the one request/response pair on the cable (ipcRenderer.invoke)
+  readFile: (request: ReadFileRequest) => Promise<ReadFileResult>;
 }
 
 // window.bridge really is a page global at runtime (preload puts it there)

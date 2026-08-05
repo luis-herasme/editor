@@ -5,6 +5,7 @@ import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
 import { installAppMenu } from "./menus.js";
+import "./files.js"; // registers file:read
 
 function createWindow(): void {
   const browserWindow = new BrowserWindow({
