@@ -1,4 +1,4 @@
-// Both native menus — the application menu and the tab context menu.
+// Both native menus: the application menu and the tab context menu.
 // Menu items are just Command sources: they put Commands on the bus and the
 // renderer decides what a "tab" even is. Importing this module registers
 // the context-menu request handler.
@@ -15,18 +15,26 @@ export function installAppMenu(): void {
       {
         label: "File",
         submenu: [
-          { label: "New Tab", accelerator: "CmdOrCtrl+T", click: () => dispatch({ type: "new-tab" }) },
-          { label: "Close Tab", accelerator: "CmdOrCtrl+W", click: () => dispatch({ type: "close-tab" }) },
+          {
+            label: "New Tab",
+            accelerator: "CmdOrCtrl+T",
+            click: () => dispatch({ type: "new-tab" }),
+          },
+          {
+            label: "Close Tab",
+            accelerator: "CmdOrCtrl+W",
+            click: () => dispatch({ type: "close-tab" }),
+          },
         ],
       },
       { role: "editMenu" }, // keeps ⌘C/⌘V working
       { role: "viewMenu" }, // keeps devtools reachable while learning
       { role: "windowMenu" },
-    ])
+    ]),
   );
 }
 
-// Right-click on a tab: pop the native macOS context menu (a real NSMenu —
+// Right-click on a tab: pop the native macOS context menu (a real NSMenu;
 // only main can create one). Rename is the one non-Command item: Electron
 // has no native text-input dialog, so the menu hands off to the renderer's
 // rename modal.
@@ -36,8 +44,18 @@ ipcMain.on("tab:menu", (event, id: number) => {
       label: "Rename Tab…",
       click: () => event.sender.send("tab:rename-request", id),
     },
-    { label: "Close Tab", click: () => dispatch({ type: "close-tab", id }) },
+    {
+      label: "Close Tab",
+      click: () =>
+        dispatch({
+          type: "close-tab",
+          id,
+        }),
+    },
     { type: "separator" },
-    { label: "New Tab", click: () => dispatch({ type: "new-tab" }) },
+    {
+      label: "New Tab",
+      click: () => dispatch({ type: "new-tab" }),
+    },
   ]).popup();
 });

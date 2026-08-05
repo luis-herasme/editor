@@ -4,8 +4,9 @@
 import { BrowserWindow, ipcMain } from "electron";
 import * as os from "os";
 import * as pty from "node-pty";
+import type { ShellDataMessage, ShellSizeMessage } from "../ipc/bridge.js";
 
-// App-lifetime, so module scope — registering handlers inside createWindow
+// App-lifetime, so module scope: registering handlers inside createWindow
 // would re-register them if a second window ever appeared.
 const shells = new Map<number, pty.IPty>();
 
@@ -15,50 +16,69 @@ const shells = new Map<number, pty.IPty>();
 // '-l' starts it as a login shell so ~/.zprofile etc. are loaded.
 // No startup race here: `spawn` is sent by a running page, so the shell
 // can't exist before the renderer is listening.
-ipcMain.on("shell:spawn", (event, id: number, cols: number, rows: number) => {
-  const shell = pty.spawn(process.env.SHELL || "/bin/zsh", ["-l"], {
+ipcMain.on("shell:spawn", (event, size: ShellSizeMessage) => {
+  let shellPath = process.env.SHELL;
+  if (!shellPath) {
+    shellPath = "/bin/zsh";
+  }
+  const shell = pty.spawn(shellPath, ["-l"], {
     name: "xterm-256color",
-    cols,
-    rows,
+    cols: size.cols,
+    rows: size.rows,
     cwd: os.homedir(),
     env: process.env,
   });
-  shells.set(id, shell);
+  shells.set(size.id, shell);
 
   // Replies go to whoever asked: event.sender is the page that sent `spawn`.
   const page = event.sender;
 
   // shell -> screen: bytes the shell writes are forwarded to its tab
   shell.onData((data: string) => {
-    if (!page.isDestroyed()) page.send("shell:data", id, data);
+    if (page.isDestroyed()) {
+      return;
+    }
+    const message: ShellDataMessage = {
+      id: size.id,
+      data,
+    };
+    page.send("shell:data", message);
   });
 
   // One removal path for a tab, however its shell died (`exit`, ⌘W, the
   // tab's ×): the exit event. The last shell exiting closes the window.
   shell.onExit(() => {
-    shells.delete(id);
-    if (page.isDestroyed()) return;
-    page.send("shell:exited", id);
-    if (shells.size === 0) BrowserWindow.fromWebContents(page)?.close();
+    shells.delete(size.id);
+    if (page.isDestroyed()) {
+      return;
+    }
+    page.send("shell:exited", size.id);
+    if (shells.size === 0) {
+      BrowserWindow.fromWebContents(page)?.close();
+    }
   });
 });
 
 // keyboard -> shell: keystrokes from a tab are written to its PTY
-ipcMain.on("shell:write", (_event, id: number, data: string) =>
-  shells.get(id)?.write(data)
-);
+ipcMain.on("shell:write", (_event, message: ShellDataMessage) => {
+  shells.get(message.id)?.write(message.data);
+});
 
 // Each PTY must always match its tab's on-screen grid size, or full-screen
 // programs (vim, htop) would draw outside the visible area.
-ipcMain.on("shell:resize", (_event, id: number, cols: number, rows: number) =>
-  shells.get(id)?.resize(cols, rows)
-);
+ipcMain.on("shell:resize", (_event, size: ShellSizeMessage) => {
+  shells.get(size.id)?.resize(size.cols, size.rows);
+});
 
 // ⌘W / ×: the renderer asks for the kill; the tab disappears when the
 // shell's exit event lands back in the renderer.
-ipcMain.on("shell:kill", (_event, id: number) => shells.get(id)?.kill());
+ipcMain.on("shell:kill", (_event, id: number) => {
+  shells.get(id)?.kill();
+});
 
-// Closing the window kills every remaining shell — no orphan processes.
+// Closing the window kills every remaining shell: no orphan processes.
 export function killAllShells(): void {
-  for (const shell of shells.values()) shell.kill();
+  for (const shell of shells.values()) {
+    shell.kill();
+  }
 }

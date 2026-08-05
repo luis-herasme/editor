@@ -148,9 +148,9 @@
       .xterm-viewport::-webkit-scrollbar-track {
         background: transparent;
       }
-      /* The colors are custom properties set by renderer/index.ts from theme.ts —
-         CSS has no way to read a script's values, so the script pushes them
-         in. */
+      /* The colors are custom properties set by renderer/index.ts from
+         theme.ts: CSS has no way to read a script's values, so the script
+         pushes them in. */
       .xterm-viewport::-webkit-scrollbar-thumb {
         background: var(--scrollbar-thumb);
         border-radius: 3px;
@@ -161,8 +161,8 @@
     </style>
   </head>
   <body>
-    <!-- The rename modal. <dialog> + showModal() gives real modality —
-         backdrop, focus trap, Escape cancels — from the browser engine.
+    <!-- The rename modal. <dialog> + showModal() gives real modality
+         (backdrop, focus trap, Escape cancels) from the browser engine.
          (Electron has no native text-input dialog, so an in-window modal
          is the standard pattern; VS Code does the same.) -->
     <dialog id="rename-dialog">

@@ -1,5 +1,5 @@
 // Main process boot: the window and the app lifecycle. The other main
-// modules register their own IPC handlers when imported — shells.ts owns
+// modules register their own IPC handlers when imported: shells.ts owns
 // the PTYs, menus.ts owns both native menus, bus.ts owns the command bus.
 import { app, BrowserWindow } from "electron";
 import * as path from "path";
@@ -8,10 +8,10 @@ import { killAllShells } from "./shells.js";
 import { installAppMenu } from "./menus.js";
 
 function createWindow(): void {
-  const win = new BrowserWindow({
+  const browserWindow = new BrowserWindow({
     width: 900,
     height: 600,
-    // Shown until the page's first paint — the same THEME color the page
+    // Shown until the page's first paint: the same THEME color the page
     // then paints itself, so startup doesn't flash a different color.
     backgroundColor: THEME.background,
     webPreferences: {
@@ -22,11 +22,13 @@ function createWindow(): void {
     },
   });
 
-  win.on("closed", killAllShells);
+  browserWindow.on("closed", killAllShells);
 
   // This file runs from dist/main/, but the page lives (uncompiled) in
   // src/renderer/. The renderer creates the first tab once its script runs.
-  win.loadFile(path.join(import.meta.dirname, "../../src/renderer/index.html"));
+  browserWindow.loadFile(
+    path.join(import.meta.dirname, "../../src/renderer/index.html"),
+  );
 }
 
 app.whenReady().then(() => {
@@ -34,4 +36,6 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-app.on("window-all-closed", () => app.quit());
+app.on("window-all-closed", () => {
+  app.quit();
+});
