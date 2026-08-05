@@ -107,7 +107,7 @@ can never lag behind the UI.
 
 Two consequences worth naming:
 
-- **Events carry a state snapshot** (`{tabs, activeId}`), so an observer
+- **Events carry a state snapshot** (`{tabs, layout, activeId}`), so an observer
   never needs a query protocol: whatever arrives last is the truth. Main
   keeps the latest snapshot as the read model a future server will answer
   from.
@@ -299,10 +299,15 @@ change it and update this list.
   blocking that click would also block the drag that starts on the same
   mousedown; and the library arrives as a classic-script global like
   xterm.js, plus its stylesheet, retinted from theme.ts by overriding its
-  CSS custom properties. Split-creating gestures are switched off
-  (`onWillShowOverlay` vetoes non-strip drops) until splits are designed
-  for real, a feature that starts with modeling the layout tree in
-  `EditorState`, not with pixels.
+  CSS custom properties. Splits shipped through the same door (2026-08):
+  `EditorState.layout` models the pane tree as groups (leaves) and splits
+  (branches), built by walking Dockview's own layout serialization, so
+  observers see arrangement, not pixels. Dropping a tab on a pane's edge
+  issues `split-tab`, on a pane's center `move-tab` into that group, and
+  the consumer replays both through `moveTo()`. Deliberately still off:
+  window-edge drops (Dockview has no public root-relative placement API)
+  and whole-group drags, until a feature needs them; divider sizes are
+  not modeled, so resizing a split emits no Event.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
@@ -333,11 +338,10 @@ A quick map so features land on the right side of the cable:
 - **Protocol changes** (the expensive kind — design first): config file (a
   `config:get` message or similar), shell integration/OSC hooks (new main →
   renderer events), VS Code view (a message telling the renderer what port
-  openvscode-server landed on). Splits moved down a tier: Dockview already
-  renders them, and each split's terminal reuses the per-tab shell
-  machinery unchanged, so splits are now a bus change (`split` Command, a
-  layout tree in `EditorState`) plus re-enabling the vetoed gestures, with
-  no IPC change.
+  openvscode-server landed on). Splits proved the tier system: they
+  shipped as a bus change (`split-tab`, `EditorState.layout`) with zero
+  IPC change, because each split's terminal reuses the per-tab shell
+  machinery unchanged.
 
 The rule of thumb: protocol changes get a moment of planning in this doc
 *before* the code is written; the other two kinds can just be built.

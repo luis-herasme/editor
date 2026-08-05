@@ -15,6 +15,7 @@ export function dispatch(command: Command): void {
 // answer "what does the editor look like?" from.
 let editorState: EditorState = {
   tabs: [],
+  layout: null,
   activeId: -1,
 };
 ipcMain.on("event", (_event, event: EditorEvent) => {

@@ -281,8 +281,9 @@ another pane, panes can be split and resized with draggable dividers, and
 the whole arrangement can be saved and restored. The pattern is what makes
 VS Code's editor area feel the way it does. This project uses
 [Dockview](https://dockview.dev): our tab bar and terminal panes are Dockview
-"panels", though today everything lives in a single group with the
-split-creating gestures switched off until splits are a real feature.
+"panels". Tabs drag along a strip to reorder, between strips to change
+group, and onto a pane's edge to split; window-edge drops and whole-group
+drags stay disabled until a feature needs them.
 
 ## Drag-and-drop interception (the one-door rule)
 
@@ -291,8 +292,9 @@ normally applies a drag itself: you drop a tab, the library mutates its
 layout, and the application finds out afterwards. That would make gestures
 a second write path around the bus. Dockview instead exposes `onWillDrop`,
 which fires *before* it mutates anything and can be cancelled. We cancel
-every drop, translate it into the equivalent Command (`move-tab`), and
-dispatch that through `executeCommand`, which performs the identical move
+every drop, translate it into the equivalent Command (`move-tab` for strip
+and pane-center drops, `split-tab` for pane-edge drops), and dispatch that
+through `executeCommand`, which performs the identical move
 via Dockview's programmatic API (`panel.api.moveTo`). The gesture becomes
 just another Command source — same door as the menus, the devtools console,
 and the future agent. The one exception is clicking a tab to activate it:

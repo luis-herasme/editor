@@ -10,12 +10,22 @@
 // through the same door, executeCommand (see ARCHITECTURE.md, "The layout
 // engine"). Nothing outside this file knows Dockview exists.
 import { THEME } from "../theme.js";
-import type { Command, EditorState, TabInfo } from "../api.js";
+import type { Command, EditorState, LayoutNode, TabInfo } from "../api.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
 import type { Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
-import type { IDockviewPanel } from "dockview";
+import type {
+  DockviewGroupPanel,
+  IDockviewPanel,
+  SerializedDockview,
+} from "dockview";
 import { requireElement } from "./dom.js";
+
+// Dockview exports its serialized layout but not the node types inside it,
+// so both are derived here. A node's `data` is either child nodes (branch)
+// or one serialized group (leaf); Array.isArray is what tells them apart.
+type SerializedGridNode = SerializedDockview["grid"]["root"];
+type SerializedGroup = Exclude<SerializedGridNode["data"], unknown[]>;
 
 // xterm.js and dockview arrive via classic <script> tags in index.html
 // (a packaging detail), so at runtime they really are page globals, declared
@@ -95,39 +105,62 @@ const dockview = new dockviewLibrary.DockviewComponent(requireElement("layout"),
 // agent call does.
 dockview.api.onWillDrop((event) => {
   event.preventDefault();
-  if (event.kind !== "tab" && event.kind !== "header_space") {
-    return; // a drop that would create a split; splits don't exist yet
-  }
   const data = event.getData();
   if (!data || data.panelId === null) {
     return; // a whole-group drag, not a single tab
   }
+  const id = Number(data.panelId);
   const group = event.group;
   if (!group) {
+    return; // a window-edge drop; those overlays are suppressed below
+  }
+  if (event.kind === "tab" || event.kind === "header_space") {
+    // Dropping on a tab targets that tab's position; dropping on the
+    // empty strip after the tabs targets the end.
+    let index = group.panels.length;
+    if (event.panel) {
+      index = group.panels.indexOf(event.panel);
+    }
+    executeCommand({
+      type: "move-tab",
+      id,
+      groupId: group.id,
+      index,
+    });
     return;
   }
-  // Dropping on a tab targets that tab's position; dropping on the empty
-  // strip after the tabs targets the end.
-  let index = group.panels.length;
-  if (event.panel) {
-    index = group.panels.indexOf(event.panel);
+  // kind === "content": the pane below the strip. The center merges the
+  // tab into this group; a side splits a new group off there.
+  if (event.position === "center") {
+    if (data.groupId === group.id) {
+      return; // a tab dropped onto its own pane, mirroring Dockview's guard
+    }
+    executeCommand({
+      type: "move-tab",
+      id,
+      groupId: group.id,
+      index: group.panels.length,
+    });
+    return;
   }
   executeCommand({
-    type: "move-tab",
-    id: Number(data.panelId),
-    index,
+    type: "split-tab",
+    id,
+    targetGroupId: group.id,
+    side: event.position,
   });
 });
 
-// Splits don't exist yet, so suppress the drop overlays that promise them.
+// Window-edge splits aren't designed yet (they need a public API for
+// root-relative placement), so suppress just those overlays.
 dockview.api.onWillShowOverlay((event) => {
-  if (event.kind === "tab" || event.kind === "header_space") {
-    return;
+  if (event.kind === "edge") {
+    event.preventDefault();
   }
-  event.preventDefault();
 });
 
-// With a single group there is nowhere for the whole group to go.
+// Dragging a whole group (its header) stays disabled: tabs are the unit
+// of movement until a feature needs group moves.
 dockview.api.onWillDragGroup((event) => {
   event.nativeEvent.preventDefault();
 });
@@ -170,27 +203,88 @@ export function getTabTitle(id: number): string | undefined {
   return title;
 }
 
-// Every Event carries one of these: the whole visible truth, so observers
-// never need to ask questions (see api.ts). Dockview's panel list is the
-// order on screen, so it is the order in the snapshot.
-function snapshot(): EditorState {
-  const tabList: TabInfo[] = [];
-  for (const panel of dockview.api.panels) {
-    const tab = tabs.get(Number(panel.id));
-    if (!tab) {
-      continue;
+// The pane arrangement as api.ts's LayoutNode tree, built from Dockview's
+// own layout serialization: a leaf is a group (its `views` are panel ids
+// in strip order), a branch is a split, and nesting alternates direction
+// at every level, starting from the root's orientation.
+function buildLayout(
+  node: SerializedGridNode,
+  direction: "row" | "column",
+): LayoutNode {
+  const data = node.data;
+  if (!Array.isArray(data)) {
+    const serializedGroup: SerializedGroup = data;
+    const tabList: TabInfo[] = [];
+    for (const panelId of serializedGroup.views) {
+      const tab = tabs.get(Number(panelId));
+      if (!tab) {
+        continue;
+      }
+      let title = tab.titleElement.textContent;
+      if (title === null) {
+        title = "";
+      }
+      tabList.push({
+        id: Number(panelId),
+        title,
+      });
     }
-    let title = tab.titleElement.textContent;
-    if (title === null) {
-      title = "";
-    }
-    tabList.push({
-      id: Number(panel.id),
-      title,
-    });
+    return {
+      type: "group",
+      group: {
+        id: serializedGroup.id,
+        tabs: tabList,
+      },
+    };
+  }
+  let childDirection: "row" | "column" = "row";
+  if (direction === "row") {
+    childDirection = "column";
+  }
+  const children: LayoutNode[] = [];
+  for (const child of data) {
+    children.push(buildLayout(child, childDirection));
   }
   return {
+    type: "split",
+    direction,
+    children,
+  };
+}
+
+function collectTabs(node: LayoutNode, into: TabInfo[]): void {
+  if (node.type === "group") {
+    for (const tab of node.group.tabs) {
+      into.push(tab);
+    }
+    return;
+  }
+  for (const child of node.children) {
+    collectTabs(child, into);
+  }
+}
+
+// Every Event carries one of these: the whole visible truth, so observers
+// never need to ask questions (see api.ts).
+function snapshot(): EditorState {
+  if (dockview.api.panels.length === 0) {
+    return {
+      tabs: [],
+      layout: null,
+      activeId,
+    };
+  }
+  const serialized = dockview.api.toJSON();
+  let rootDirection: "row" | "column" = "column";
+  if (serialized.grid.orientation === dockviewLibrary.Orientation.HORIZONTAL) {
+    rootDirection = "row";
+  }
+  const layout = buildLayout(serialized.grid.root, rootDirection);
+  const tabList: TabInfo[] = [];
+  collectTabs(layout, tabList);
+  return {
     tabs: tabList,
+    layout,
     activeId,
   };
 }
@@ -378,17 +472,76 @@ export function executeCommand(command: Command): void {
       if (!tab) {
         return;
       }
-      // No-op moves are dropped, mirroring Dockview's own drop guards.
-      // Without this, moving a group's only panel removes it, the emptied
-      // group is disposed mid-move, and the tab bar disappears.
-      const panels = tab.panel.group.panels;
-      if (panels.length === 1) {
+      let targetGroup = tab.panel.group;
+      if (command.groupId !== undefined) {
+        let found: DockviewGroupPanel | undefined;
+        for (const group of dockview.api.groups) {
+          if (group.id === command.groupId) {
+            found = group;
+            break;
+          }
+        }
+        if (!found) {
+          return;
+        }
+        targetGroup = found;
+      }
+      // No-op moves within one group are dropped, mirroring Dockview's own
+      // drop guards. Without this, moving a group's only panel removes it,
+      // the emptied group is disposed mid-move, and its tab strip
+      // disappears. Moving to another group is real even for an only tab.
+      if (targetGroup === tab.panel.group) {
+        if (targetGroup.panels.length === 1) {
+          return;
+        }
+        if (targetGroup.panels.indexOf(tab.panel) === command.index) {
+          return;
+        }
+      }
+      tab.panel.api.moveTo({
+        group: targetGroup,
+        index: command.index,
+      });
+      window.bridge.emitEvent({
+        type: "tab-moved",
+        id,
+        state: snapshot(),
+      });
+      return;
+    }
+    case "split-tab": {
+      let id = command.id;
+      if (id === undefined) {
+        id = activeId;
+      }
+      const tab = tabs.get(id);
+      if (!tab) {
         return;
       }
-      if (panels.indexOf(tab.panel) === command.index) {
+      let targetGroup = tab.panel.group;
+      if (command.targetGroupId !== undefined) {
+        let found: DockviewGroupPanel | undefined;
+        for (const group of dockview.api.groups) {
+          if (group.id === command.targetGroupId) {
+            found = group;
+            break;
+          }
+        }
+        if (!found) {
+          return;
+        }
+        targetGroup = found;
+      }
+      // Splitting a group's only tab against that same group would tear
+      // the group down just to rebuild it beside itself; Dockview treats
+      // it as a no-op drop and so do we.
+      if (targetGroup === tab.panel.group && targetGroup.panels.length === 1) {
         return;
       }
-      tab.panel.api.moveTo({ index: command.index });
+      tab.panel.api.moveTo({
+        group: targetGroup,
+        position: command.side,
+      });
       window.bridge.emitEvent({
         type: "tab-moved",
         id,
