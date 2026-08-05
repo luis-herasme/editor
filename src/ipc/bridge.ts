@@ -4,9 +4,8 @@
 import type { Command, EditorEvent } from "../api.js";
 
 // Every shell message carries the tab's id, assigned by the renderer, which
-// knows a tab exists before main does. Multi-value messages travel as one
-// named-field object, so nothing depends on argument order.
-// (cols/rows match xterm's and node-pty's own property names.)
+// knows a tab exists before main does. (cols/rows match xterm's and
+// node-pty's own property names.)
 
 // A tab's shell grid size: a shell is spawned at one and resized to the next.
 export interface ShellSizeMessage {

@@ -4,10 +4,8 @@
 import { executeCommand, getTabTitle, focusActiveTab } from "./tabs.js";
 import { requireElement } from "./dom.js";
 
-// instanceof narrows to the concrete element type (and covers the
-// missing-element case), so no type assertions are needed. The narrowed
-// value is re-declared as a plain typed const so every function below
-// sees the narrow type.
+// Re-declared as typed consts because instanceof narrowing doesn't flow
+// into the functions below.
 const dialogLookup = document.getElementById("rename-dialog");
 if (!(dialogLookup instanceof HTMLDialogElement)) {
   throw new Error("#rename-dialog is missing or is not a <dialog>");
