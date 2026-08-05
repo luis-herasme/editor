@@ -331,6 +331,26 @@ change it and update this list.
   non-default theme — a config file would fix this if one ever lands),
   and a second app instance finds the storage locked, so settings.ts
   treats persistence as best-effort rather than crashing.
+- **Validation is declared, not hand-rolled: zod.** (Decided 2026-08,
+  refining the settings decision.) The settings gate began as a chain of
+  `typeof` checks — schema validation written by hand. zod states the
+  same shape declaratively, once, as a static schema with the rule baked
+  in: a field that is missing or fails its checks `.catch`es to its
+  default, a non-object candidate to the defaults whole. Loading is then
+  just `parse(stored)` and updating is `parse({...settings, ...partial})`
+  — no helper functions between the schema and its two call sites. This is
+  the project's first non-UI runtime dependency, deliberately used only
+  where untrusted data enters (localStorage, `update-settings` payloads);
+  the IPC contract stays compile-checked only, until an outside caller
+  (the future API server) makes those inputs untrusted too. Delivery
+  quirk worth knowing: with no bundler, the browser resolves every
+  import itself, and a bare `"zod"` means nothing to it. Import maps are
+  the web's fix, but inline ones are blocked by our CSP and external
+  ones aren't supported by Chromium yet — so settings.ts imports zod by
+  relative `node_modules` path, the same way index.html reaches xterm's
+  files. Costs we accept: one ugly import path, and a dependency whose
+  ESM build must stay browser-loadable (zod's is: fully relative,
+  extension-qualified imports).
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
