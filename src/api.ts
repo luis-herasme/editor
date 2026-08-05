@@ -1,68 +1,53 @@
 // The editor's public interface: read this file first.
 //
 // Everything the editor can do is a Command; everything that happens is an
-// Event. The UI (menu, buttons, clicks) issues these same Commands, so the
-// API can never do less than the UI. Try it now in devtools (⌥⌘I):
+// Event. The UI issues these same Commands, so the API can never do less
+// than the UI. Try it in devtools (⌥⌘I):
 //
 //   editor.command({ type: "new-tab" })
 //   editor.command({ type: "write", text: "ls\n" })
 //
-// Eventually a local server in the main process will feed Commands in and
-// stream Events out, so an agent can drive the editor (see ARCHITECTURE.md,
-// "The command bus").
-//
-// Types only: consumers use `import type { ... } from "./api.js"`, which is
-// erased at compile time. The emitted api.js is an empty module nothing
-// ever loads.
+// Types only: consumers use `import type`; the emitted api.js is empty.
 
-// Where a split lands, relative to its target group.
+// where a split lands, relative to its target group
 export type SplitSide = "left" | "right" | "top" | "bottom";
 
 // Imperative requests, into the editor. `id` defaults to the active tab
 // where it's optional.
 export type Command =
-  // Open a new tab (default: in the active group). Double-clicking a tab
-  // strip's empty space issues this with that strip's group.
   | { type: "new-tab"; groupId?: string }
   | { type: "close-tab"; id?: number }
   | { type: "activate-tab"; id: number }
   | { type: "write"; id?: number; text: string } // type into a terminal
-  // Move a tab into a group's tab strip at `index` (0 = leftmost).
-  // `groupId` defaults to the tab's current group: a plain reorder.
-  // Dragging a tab along a strip issues this same Command.
+  // Move a tab into a group's strip at `index` (0 = leftmost). `groupId`
+  // defaults to the tab's current group: a plain reorder.
   | { type: "move-tab"; id?: number; groupId?: string; index: number }
   // Split: move a tab into a new group created on `side` of the target
-  // group (default: the tab's own group). Dragging a tab onto a pane's
-  // edge issues this same Command.
+  // group (default: the tab's own group).
   | { type: "split-tab"; id?: number; targetGroupId?: string; side: SplitSide }
-  // Rename a tab. An explicit rename pins the title: later `transient`
-  // renames (the shell's automatic OSC titles) are ignored for that tab.
-  // An explicit `title: ""` reverts to "Untitled" and unpins.
+  // An explicit rename pins the title against the shell's `transient`
+  // (OSC) renames; an explicit `title: ""` reverts to "Untitled" and unpins.
   | { type: "set-tab-title"; id?: number; title: string; transient?: boolean }
   // Change any subset of the settings; omitted fields keep their value.
-  // Invalid values are corrected, not rejected: an unknown theme name is
-  // ignored (like an unknown group id) and a wild font size is clamped.
+  // Invalid values are corrected to their defaults, not rejected.
   | { type: "update-settings"; settings: Partial<Settings> };
 
-// Facts, out of the editor. Every event carries the state it produced,
-// so whatever an observer heard last is the whole truth. tab-moved covers
-// reorders, merges and splits alike: the layout in the snapshot is the
-// part that differs.
+// Facts, out of the editor. Every event carries the state it produced, so
+// whatever an observer heard last is the whole truth. tab-moved covers
+// reorders, merges and splits alike.
 export type EditorEvent =
   | { type: "tab-opened"; id: number; state: EditorState }
   | { type: "tab-closed"; id: number; state: EditorState }
   | { type: "tab-retitled"; id: number; state: EditorState }
   | { type: "tab-moved"; id: number; state: EditorState }
   | { type: "tab-activated"; id: number; state: EditorState }
-  // Carries the settings as they actually took effect (validated and
-  // clamped), so observers hear the truth, not the request.
+  // carries the settings as they actually took effect, not as requested
   | { type: "settings-changed"; settings: Settings; state: EditorState };
 
-// What the user can adjust at runtime. `theme` names an entry in
-// theme.ts's THEMES ("dark", "light", ...); it stays a plain string here
-// so this file keeps exporting types only — the consumer validates the
-// name at runtime. `fontFamily`/`fontSize` are the terminal's;
-// `uiFontFamily` is everything else (tabs, title bar, dialogs).
+// What the user can adjust at runtime. `theme` names a THEMES entry
+// (theme.ts); it stays a plain string so this file exports types only,
+// and the consumer validates the name. fontFamily/fontSize are the
+// terminal's; uiFontFamily is everything else.
 export interface Settings {
   theme: string;
   fontFamily: string;
@@ -75,24 +60,22 @@ export interface TabInfo {
   title: string;
 }
 
-// A tab group: one tab strip and the pane below it. Group ids are opaque
-// strings assigned by the layout engine; treat them as handles to pass
-// back into Commands, not as names.
+// One tab strip and the pane below it. Group ids are opaque handles
+// assigned by the layout engine.
 export interface GroupInfo {
   id: string;
   tabs: TabInfo[];
 }
 
-// The pane arrangement as a tree: a group is a leaf, and a split lays its
-// children out side by side ("row") or stacked ("column"). Divider sizes
-// are deliberately not modeled: resizing changes no tab and emits no
-// Event. If an observer ever needs sizes, that's a designed addition here.
+// The pane arrangement as a tree: a group is a leaf, a split lays its
+// children side by side ("row") or stacked ("column"). Divider sizes are
+// deliberately not modeled: resizing changes no tab and emits no Event.
 export type LayoutNode =
   | { type: "group"; group: GroupInfo }
   | { type: "split"; direction: "row" | "column"; children: LayoutNode[] };
 
 export interface EditorState {
-  tabs: TabInfo[]; // every tab, in visual order: left-to-right, top-to-bottom
+  tabs: TabInfo[]; // every tab, in visual order
   layout: LayoutNode | null; // null only before the first tab exists
   activeId: number;
 }

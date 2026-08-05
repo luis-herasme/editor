@@ -1,18 +1,16 @@
-// Main's end of the command bus (see ARCHITECTURE.md and api.ts).
-// Importing this module registers the Event intake.
+// Main's end of the command bus (api.ts). Importing this module registers
+// the Event intake.
 import { BrowserWindow, ipcMain } from "electron";
 import type { Command, EditorEvent, EditorState } from "../api.js";
 
-// Commands are how *anything* tells the editor to do something: today the
-// menus, next a local server so an agent can drive the editor. This is the
-// single entry point that future source will call.
+// the single entry point every Command source calls: menus today, a local
+// server for agents tomorrow
 export function dispatch(command: Command): void {
   BrowserWindow.getFocusedWindow()?.webContents.send("command", command);
 }
 
-// The other half of the bus: every state change comes back as an Event
-// carrying a full snapshot. Kept as the read model the future server will
-// answer "what does the editor look like?" from.
+// the read model a future server will answer from: every Event carries a
+// full snapshot, so the latest one is the whole truth
 let editorState: EditorState = {
   tabs: [],
   layout: null,

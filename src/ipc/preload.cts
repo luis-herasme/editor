@@ -1,8 +1,6 @@
-// Preload script: the bridge between the two worlds.
-// The renderer is a sandboxed web page with no access to Node.js; this file
-// runs with access to both sides and exposes exactly these capabilities to
-// the page as `window.bridge`. Nothing else crosses the boundary.
-// The Bridge type (bridge.ts) keeps this and the renderer in sync.
+// Runs with access to both worlds and exposes exactly these capabilities
+// to the sandboxed page as window.bridge; nothing else crosses the
+// boundary. The Bridge type keeps this and the renderer in sync.
 import type { Bridge, ShellDataMessage } from "./bridge.js";
 import { contextBridge, ipcRenderer } from "electron";
 

@@ -83,6 +83,7 @@ the other end echoes it back.
 | `src/main/menus.ts`            | App menu + tab context menu (menu items issue Commands)      |
 | `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
+| `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
 | `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first tab       |
 | `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
 | `src/renderer/rename-dialog.ts`| The rename modal                                             |

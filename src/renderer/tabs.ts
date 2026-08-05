@@ -1,14 +1,8 @@
-// The tabs: each one pairs an xterm.js instance with a shell in main, via
-// window.bridge (see ipc/bridge.ts), and this file is where tab ids are
-// born. It also holds executeCommand, the command-bus consumer, because
-// the consumer's whole job is mutating tab state: the two are one unit.
-//
-// The tab bar and panes are rendered by Dockview, a docking layout manager
-// (see GLOSSARY.md). Dockview is deliberately kept behind the bus: it draws
-// the drag gestures, but every layout mutation it would make is cancelled
-// in onWillDrop and re-issued as a Command, so gestures and API calls enter
-// through the same door, executeCommand (see ARCHITECTURE.md, "The layout
-// engine"). Nothing outside this file knows Dockview exists.
+// Tab store + executeCommand, the command-bus consumer (api.ts). Dockview
+// draws the strip, panes and drag gestures, but every layout mutation it
+// would make is cancelled and re-issued as a Command, so gestures and API
+// calls enter through the same door. Nothing outside this file knows
+// Dockview exists (ARCHITECTURE.md, "The layout engine").
 import { getSettings, currentTheme, updateSettings } from "./settings.js";
 import type { Command, EditorState, LayoutNode, TabInfo } from "../api.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
@@ -21,16 +15,14 @@ import type {
 } from "dockview";
 import { requireElement } from "./dom.js";
 
-// Dockview exports its serialized layout but not the node types inside it,
-// so both are derived here. A node's `data` is either child nodes (branch)
-// or one serialized group (leaf); Array.isArray is what tells them apart.
+// Dockview exports its serialized layout but not the node types inside it.
+// A node's `data` is either child nodes (branch) or one group (leaf);
+// Array.isArray tells them apart.
 type SerializedGridNode = SerializedDockview["grid"]["root"];
 type SerializedGroup = Exclude<SerializedGridNode["data"], unknown[]>;
 
-// xterm.js and dockview arrive via classic <script> tags in index.html
-// (a packaging detail), so at runtime they really are page globals, declared
-// here, next to their only consumer. `declare global` is reserved for names
-// that genuinely exist on the global scope at runtime.
+// xterm and dockview arrive via classic <script> tags, so at runtime they
+// really are page globals.
 declare global {
   const Terminal: typeof XtermTerminal;
   const FitAddon: { FitAddon: typeof XtermFitAddon };
@@ -40,21 +32,20 @@ declare global {
 }
 
 interface Tab {
-  panel: IDockviewPanel; // the tab's Dockview identity (its pane + tab strip entry)
+  panel: IDockviewPanel; // the tab's Dockview identity
   terminal: XtermTerminal;
-  titleElement: HTMLElement; // the text inside our custom tab: the tab's title
-  titlePinned: boolean; // an explicit rename beats the shell's automatic titles
+  titleElement: HTMLElement;
+  titlePinned: boolean; // an explicit rename beats the shell's OSC titles
   observer: ResizeObserver; // re-fits the grid when the pane's box changes
-  fitAddon: XtermFitAddon; // for update-settings: a font change resizes no box
+  fitAddon: XtermFitAddon; // for update-settings: a font change moves no box
 }
 
 const tabs = new Map<number, Tab>();
-let nextId = 0; // tab ids are born here (see ARCHITECTURE.md: "Tabs")
+let nextId = 0; // tab ids are born here
 let activeId = -1;
 
-// Hand-off slots: api.addPanel() synchronously asks the factories below for
-// the pane and tab elements; createTab fills these right before each call.
-// Only createTab adds panels, so a slot is never occupied twice.
+// api.addPanel() synchronously asks the factories below for the pane and
+// tab elements; createTab fills these right before each call.
 let handOffPaneElement: HTMLElement | undefined;
 let handOffTabElement: HTMLElement | undefined;
 
@@ -64,9 +55,8 @@ const dockviewLibrary = window.dockview;
 const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
   theme: dockviewLibrary.themeDark,
   disableFloatingGroups: true,
-  // When tabs overflow the strip, Dockview shows a chevron+count dropdown
-  // listing the hidden ones; ours renders custom tab components it can't
-  // reproduce, so the list comes up broken. Scrolling the strip stays.
+  // the overflow dropdown can't render our custom tab components; the
+  // strip still scrolls
   disableTabsOverflowList: true,
   createComponent: () => {
     const element = handOffPaneElement;
@@ -90,8 +80,7 @@ const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
       init: () => {},
     };
   },
-  // Called once per group: every pane's strip gets its own + button, and
-  // each button opens the tab in its own group, not the active one.
+  // called once per group: each pane's + targets its own group
   createRightHeaderActionComponent: (group) => {
     const button = document.createElement("button");
     button.className = "new-tab";
@@ -108,10 +97,7 @@ const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
   },
 });
 
-// The one-door rule for gestures: Dockview renders the drag (ghost, drop
-// overlays), but the mutation itself is cancelled here and re-issued as a
-// Command, so a drag enters the editor the same way a menu click or an
-// agent call does.
+// The one-door rule: cancel every drop and re-issue it as a Command.
 dockview.api.onWillDrop((event) => {
   event.preventDefault();
   const data = event.getData();
@@ -124,8 +110,7 @@ dockview.api.onWillDrop((event) => {
     return; // a window-edge drop; those overlays are suppressed below
   }
   if (event.kind === "tab" || event.kind === "header_space") {
-    // Dropping on a tab targets that tab's position; dropping on the
-    // empty strip after the tabs targets the end.
+    // on a tab: that tab's position; on the empty strip: the end
     let index = group.panels.length;
     if (event.panel) {
       index = group.panels.indexOf(event.panel);
@@ -138,8 +123,7 @@ dockview.api.onWillDrop((event) => {
     });
     return;
   }
-  // kind === "content": the pane below the strip. The center merges the
-  // tab into this group; a side splits a new group off there.
+  // kind === "content": center merges into the group, a side splits
   if (event.position === "center") {
     if (data.groupId === group.id) {
       return; // a tab dropped onto its own pane, mirroring Dockview's guard
@@ -160,24 +144,21 @@ dockview.api.onWillDrop((event) => {
   });
 });
 
-// Window-edge splits aren't designed yet (they need a public API for
-// root-relative placement), so suppress just those overlays.
+// window-edge splits aren't designed yet; suppress just those overlays
 dockview.api.onWillShowOverlay((event) => {
   if (event.kind === "edge") {
     event.preventDefault();
   }
 });
 
-// Dragging a whole group (its header) stays disabled: tabs are the unit
-// of movement until a feature needs group moves.
+// tabs are the unit of movement; whole-group drags stay disabled
 dockview.api.onWillDragGroup((event) => {
   event.nativeEvent.preventDefault();
 });
 
-// Activation is the one gesture Dockview applies itself: clicking a tab is
-// focus, not a layout mutation, and blocking the click would also block the
-// drag that starts on the same mousedown. The bus still announces it, and
-// the activate-tab Command remains the programmatic path.
+// Activation is the one gesture Dockview applies itself: it's focus, not
+// layout, and blocking the click would also block the drag that starts on
+// the same mousedown. The bus still announces it.
 dockview.api.onDidActivePanelChange((event) => {
   if (!event.panel) {
     return;
@@ -189,7 +170,7 @@ dockview.api.onDidActivePanelChange((event) => {
   activeId = id;
   const tab = tabs.get(id);
   // terminal.element is undefined until terminal.open(); createTab focuses
-  // the new terminal itself once it's open.
+  // the new terminal itself
   if (tab && tab.terminal.element) {
     tab.terminal.focus();
   }
@@ -200,7 +181,7 @@ dockview.api.onDidActivePanelChange((event) => {
   });
 });
 
-// Commands name groups by their opaque id; Dockview hands out group objects.
+// Commands name groups by id; Dockview hands out group objects.
 function findGroup(groupId: string): DockviewGroupPanel | undefined {
   for (const group of dockview.api.groups) {
     if (group.id === groupId) {
@@ -210,10 +191,8 @@ function findGroup(groupId: string): DockviewGroupPanel | undefined {
   return undefined;
 }
 
-// Double-clicking a tab strip's empty space opens a tab in that strip's
-// group, the terminal-app convention. Delegated from the layout root: the
-// void container is the strip's leftover space, so tabs and the + button
-// never match.
+// Double-clicking a strip's empty space opens a tab in that group. The
+// void container is the strip's leftover space, so tabs and + never match.
 layoutElement.addEventListener("dblclick", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) {
@@ -233,18 +212,10 @@ layoutElement.addEventListener("dblclick", (event) => {
   }
 });
 
-// The focus safety net. Keyboard focus belongs in the active terminal;
-// clicking the chrome (tabs, strip, + button) or racing fast tab switches
-// can drop it onto the page body, and shells react to their terminal
-// losing focus (some prompts re-emit the window title in a blurred state,
-// blanking the tab). Whenever focus drains to the body, hand it back.
-// preventDefault on tab mousedown would also keep focus, but it stops
-// Chromium from ever starting a tab drag, so healing beats preventing.
-// Keyboard focus belongs in the active terminal. Dockview's tabs are
-// focusable, so any click on the chrome moves focus out of xterm, and
-// shells react to the blur (some blank the window title). Once the click
-// settles, hand focus back. The rename dialog is modal, so it cannot be
-// robbed by this.
+// Focus healing: clicks on the chrome move focus out of xterm, and shells
+// react to the blur (some blank the window title). preventDefault on tab
+// mousedown would keep focus but kills Chromium's tab drag, so heal after
+// the click settles instead. The modals are unaffected: they trap focus.
 layoutElement.addEventListener("mousedown", () => {
   setTimeout(focusActiveTab, 0);
 });
@@ -261,10 +232,8 @@ export function getTabTitle(id: number): string | undefined {
   return title;
 }
 
-// The pane arrangement as api.ts's LayoutNode tree, built from Dockview's
-// own layout serialization: a leaf is a group (its `views` are panel ids
-// in strip order), a branch is a split, and nesting alternates direction
-// at every level, starting from the root's orientation.
+// The pane arrangement as api.ts's LayoutNode tree, from Dockview's own
+// serialization. Nesting alternates direction at every level.
 function buildLayout(
   node: SerializedGridNode,
   direction: "row" | "column",
@@ -322,8 +291,7 @@ function collectTabs(node: LayoutNode, into: TabInfo[]): void {
   }
 }
 
-// Every Event carries one of these: the whole visible truth, so observers
-// never need to ask questions (see api.ts).
+// Every Event carries one of these: the whole visible truth (api.ts).
 function snapshot(): EditorState {
   if (dockview.api.panels.length === 0) {
     return {
@@ -347,10 +315,8 @@ function snapshot(): EditorState {
   };
 }
 
-// xterm draws its own selection, so the browser's native Cmd+C sees nothing
-// to copy. Handle it ourselves; Cmd+V already works via the Edit menu.
-// One shared handler: only the focused (= active) terminal receives keys.
-// It fires for keydown, keypress AND keyup, so act on keydown only.
+// xterm draws its own selection, so the browser's Cmd+C sees nothing to
+// copy. Fires for keydown, keypress AND keyup; act on keydown only.
 function copyOnCmdC(event: KeyboardEvent): boolean {
   const terminal = tabs.get(activeId)?.terminal;
   if (
@@ -365,7 +331,7 @@ function copyOnCmdC(event: KeyboardEvent): boolean {
   return true;
 }
 
-// The active theme in the names xterm's `theme` option expects
+// the active theme in the names xterm's `theme` option expects
 function xtermTheme() {
   const theme = currentTheme();
   return {
@@ -384,8 +350,8 @@ function createTab(group?: DockviewGroupPanel): void {
 
   const titleElement = document.createElement("span");
   titleElement.className = "tab-title";
-  // A title is display text, not an id: no need to be unique, so no
-  // numbering. The shell usually retitles the tab within moments anyway.
+  // a title is display text, not an id: no numbering, and the shell
+  // usually retitles the tab within moments
   titleElement.textContent = "Untitled";
   titleElement.title = "Double-click to rename";
 
@@ -403,17 +369,17 @@ function createTab(group?: DockviewGroupPanel): void {
 
   const tabElement = document.createElement("div");
   tabElement.className = "tab";
-  // The id rides on the DOM so listeners outside this file (the rename
-  // dialog's double-click) can know which tab was hit without importing us.
+  // the id rides on the DOM so the rename dialog's dblclick listener can
+  // know which tab was hit without importing us
   tabElement.dataset.tabId = String(id);
   tabElement.append(titleElement, closeElement);
   tabElement.addEventListener("contextmenu", (event) => {
     event.preventDefault();
-    window.bridge.showTabMenu(id); // main pops the native menu
+    window.bridge.showTabMenu(id);
   });
 
-  // inactive: activation happens through the bus below, once the tab is
-  // registered, so the activation Event carries a complete snapshot.
+  // inactive: activation goes through the bus below, once the tab is
+  // registered, so the Event carries a complete snapshot
   let position: { referenceGroup: DockviewGroupPanel } | undefined;
   if (group !== undefined) {
     position = { referenceGroup: group };
@@ -439,9 +405,7 @@ function createTab(group?: DockviewGroupPanel): void {
   const fitAddon = new FitAddon.FitAddon();
   terminal.loadAddon(fitAddon);
 
-  // One mechanism for grid sizing: whenever this pane's box changes
-  // (window resized, split divider moved, tab revealed), re-fit the grid.
-  // (A hidden pane has no box, so fit() no-ops until it's visible again.)
+  // one mechanism for grid sizing: any box change re-fits the grid
   const observer = new ResizeObserver(() => {
     fitAddon.fit();
   });
@@ -461,21 +425,19 @@ function createTab(group?: DockviewGroupPanel): void {
     state: snapshot(),
   });
 
-  // xterm can only measure a visible container, so activate the new tab
-  // first, then open and size the terminal in it.
+  // xterm can only measure a visible container: activate first, then open
   panel.api.setActive();
   terminal.open(paneElement);
   fitAddon.fit();
   terminal.focus();
 
-  // The shell is born at the size fit() just produced.
+  // the shell is born at the size fit() just produced
   window.bridge.spawnShell({
     id,
     cols: terminal.cols,
     rows: terminal.rows,
   });
 
-  // keyboard -> shell, and keep this tab's PTY the same size as its grid
   terminal.onData((data) => {
     window.bridge.writeToShell({
       id,
@@ -491,9 +453,8 @@ function createTab(group?: DockviewGroupPanel): void {
   });
   terminal.attachCustomKeyEventHandler(copyOnCmdC);
 
-  // Programs name their own tab: they emit an OSC title sequence (see
-  // GLOSSARY.md) mixed into ordinary output, xterm parses it out, and we
-  // route it through the bus. The shell is just another API client.
+  // programs name their own tab via OSC title sequences (GLOSSARY.md);
+  // xterm parses them out of the output stream
   terminal.onTitleChange((title) => {
     executeCommand({
       type: "set-tab-title",
@@ -504,8 +465,7 @@ function createTab(group?: DockviewGroupPanel): void {
   });
 }
 
-// The command consumer: the single place a Command becomes editor behavior
-// (see api.ts and ARCHITECTURE.md, "The command bus").
+// The single place a Command becomes editor behavior.
 export function executeCommand(command: Command): void {
   switch (command.type) {
     case "new-tab": {
@@ -520,8 +480,7 @@ export function executeCommand(command: Command): void {
       return;
     }
     case "close-tab": {
-      // Ask main to kill the shell; the tab disappears when the shell's
-      // exit lands. An unknown id is a no-op on main's side, so no guard.
+      // ask main to kill the shell; the tab disappears when the exit lands
       let id = command.id;
       if (id === undefined) {
         id = activeId;
@@ -530,8 +489,7 @@ export function executeCommand(command: Command): void {
       return;
     }
     case "activate-tab": {
-      // Dockview answers with onDidActivePanelChange, which updates
-      // activeId, focuses the terminal, and emits the Event.
+      // Dockview answers with onDidActivePanelChange, which emits the Event
       tabs.get(command.id)?.panel.api.setActive();
       return;
     }
@@ -563,10 +521,8 @@ export function executeCommand(command: Command): void {
         }
         targetGroup = found;
       }
-      // No-op moves within one group are dropped, mirroring Dockview's own
-      // drop guards. Without this, moving a group's only panel removes it,
-      // the emptied group is disposed mid-move, and its tab strip
-      // disappears. Moving to another group is real even for an only tab.
+      // a no-op move within one group would dispose the group mid-move if
+      // the tab is its only panel; drop it, mirroring Dockview's guards
       if (targetGroup === tab.panel.group) {
         if (targetGroup.panels.length === 1) {
           return;
@@ -603,9 +559,8 @@ export function executeCommand(command: Command): void {
         }
         targetGroup = found;
       }
-      // Splitting a group's only tab against that same group would tear
-      // the group down just to rebuild it beside itself; Dockview treats
-      // it as a no-op drop and so do we.
+      // splitting a group's only tab against itself would tear the group
+      // down to rebuild it beside itself; a no-op, as in Dockview
       if (targetGroup === tab.panel.group && targetGroup.panels.length === 1) {
         return;
       }
@@ -629,10 +584,8 @@ export function executeCommand(command: Command): void {
       if (!tab) {
         return;
       }
-      // A pinned title (explicit rename) beats transient ones (the shell's
-      // automatic OSC titles). Explicitly renaming to "" unpins.
-      // Whitespace-only titles count as empty: rendered as-is they would
-      // be an invisible label.
+      // a pinned title (explicit rename) beats the shell's transient OSC
+      // titles; renaming to "" unpins
       const trimmedTitle = command.title.trim();
       if (command.transient && tab.titlePinned) {
         return;
@@ -645,7 +598,7 @@ export function executeCommand(command: Command): void {
         title = "Untitled";
       }
       tab.titleElement.textContent = title;
-      tab.panel.setTitle(title); // keep Dockview's own record (aria, overflow menu) true
+      tab.panel.setTitle(title); // keep Dockview's own record (aria) true
       window.bridge.emitEvent({
         type: "tab-retitled",
         id,
@@ -655,9 +608,9 @@ export function executeCommand(command: Command): void {
     }
     case "update-settings": {
       // settings.ts validates, persists and restyles the page; the live
-      // terminals are tab state, so they update here. The explicit fit:
-      // a font change alters the cell size while every pane's box stays
-      // the same, so the ResizeObservers stay silent.
+      // terminals are tab state, so they update here. Explicit fit: a font
+      // change alters the cell size but no pane's box, so the
+      // ResizeObservers stay silent.
       updateSettings(command.settings);
       const settings = getSettings();
       for (const tab of tabs.values()) {
@@ -676,14 +629,12 @@ export function executeCommand(command: Command): void {
   }
 }
 
-// shell -> screen, routed to the right tab (wired up in index.ts)
 export function handleShellData(message: ShellDataMessage): void {
   tabs.get(message.id)?.terminal.write(message.data);
 }
 
-// The one removal path for a tab: its shell exited (`exit` typed, ⌘W, or
-// its × clicked). When the last shell exits, main closes the whole window,
-// so this handler never sees an empty tab bar. (Wired up in index.ts.)
+// The one removal path for a tab: its shell exited. When the last shell
+// exits, main closes the whole window.
 export function handleShellExit(id: number): void {
   const tab = tabs.get(id);
   if (!tab) {
@@ -695,8 +646,8 @@ export function handleShellExit(id: number): void {
   if (id === activeId) {
     activeId = -1;
   }
-  // Removing the active panel makes Dockview activate a neighbor, which
-  // re-enters onDidActivePanelChange before this call returns.
+  // removing the active panel re-enters onDidActivePanelChange before this
+  // call returns
   dockview.api.removePanel(tab.panel);
   window.bridge.emitEvent({
     type: "tab-closed",
@@ -705,7 +656,6 @@ export function handleShellExit(id: number): void {
   });
 }
 
-// The active tab is the default target for focus hand-backs (rename dialog)
 export function focusActiveTab(): void {
   tabs.get(activeId)?.terminal.focus();
 }

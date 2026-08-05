@@ -1,6 +1,5 @@
 // Main process boot: the window and the app lifecycle. The other main
-// modules register their own IPC handlers when imported: shells.ts owns
-// the PTYs, menus.ts owns both native menus, bus.ts owns the command bus.
+// modules register their IPC handlers when imported.
 import { app, BrowserWindow } from "electron";
 import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
@@ -11,27 +10,22 @@ function createWindow(): void {
   const browserWindow = new BrowserWindow({
     width: 900,
     height: 600,
-    // Shown until the page's first paint. The user's chosen theme lives
-    // in the renderer's localStorage, unreadable from here, so this is
-    // the default theme's background: a non-default theme repaints on
-    // first paint (one frame). Revisit if a config file ever lands.
+    // shown until first paint; the default theme's color, since the chosen
+    // theme lives in the renderer's localStorage, unreadable from here
     backgroundColor: THEMES[DEFAULT_SETTINGS.theme].background,
-    // macOS offers no way to recolor the standard title bar, so hide it:
-    // the traffic lights stay (inset over the page), and the page's own
-    // #title-bar strip takes over the rest (color, title, drag region).
+    // macOS can't recolor the standard title bar, so hide it: the page's
+    // #title-bar strip takes over, the traffic lights stay native
     titleBarStyle: "hiddenInset",
     webPreferences: {
-      // preload.cjs, not .js: Electron's sandbox requires CommonJS there,
-      // so preload.cts is the one file tsc emits as CommonJS.
-      // (import.meta.dirname is ESM's replacement for CommonJS's __dirname.)
+      // Electron's sandbox requires a CommonJS preload; preload.cts is the
+      // one file tsc emits as .cjs
       preload: path.join(import.meta.dirname, "../ipc/preload.cjs"),
     },
   });
 
   browserWindow.on("closed", killAllShells);
 
-  // This file runs from dist/main/, but the page lives (uncompiled) in
-  // src/renderer/. The renderer creates the first tab once its script runs.
+  // this file runs from dist/main/; the page lives uncompiled in src/
   browserWindow.loadFile(
     path.join(import.meta.dirname, "../../src/renderer/index.html"),
   );

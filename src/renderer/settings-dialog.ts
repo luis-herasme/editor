@@ -1,8 +1,6 @@
-// The settings modal (a <dialog> in index.html; the rename modal's
-// pattern). Controls apply live: every change is an update-settings
-// Command, so the dialog is just another API client and the editor
-// restyles behind it as you pick. Escape or Done closes it; there is no
-// cancel/apply state to manage because the Commands already happened.
+// The settings modal. Controls apply live: every change is an
+// update-settings Command, so the dialog is just another API client and
+// there is no cancel/apply state; Escape or Done merely close it.
 import { THEMES } from "../theme.js";
 import { getSettings } from "./settings.js";
 import { executeCommand, focusActiveTab } from "./tabs.js";
@@ -17,8 +15,8 @@ const uiFontFamilyInput = requireElement(
   HTMLInputElement,
 );
 
-// One <option> per theme: THEMES stays the single source, the display
-// name is derived from the key ("solarized-dark" → "Solarized Dark")
+// one <option> per THEMES entry; the label derives from the key
+// ("solarized-dark" becomes "Solarized Dark")
 for (const name of Object.keys(THEMES)) {
   const option = document.createElement("option");
   option.value = name;
@@ -29,8 +27,8 @@ for (const name of Object.keys(THEMES)) {
   themeSelect.append(option);
 }
 
-// Controls always show the store's truth — on open, and again after each
-// Command, which may have corrected the request (clamped a font size).
+// controls always show the store's truth: on open, and again after each
+// Command, which may have corrected the request
 function showCurrentSettings(): void {
   const settings = getSettings();
   themeSelect.value = settings.theme;

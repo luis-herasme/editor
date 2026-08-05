@@ -1,0 +1,271 @@
+/* Theme colors and fonts arrive as custom properties, set from the saved
+   settings by renderer/settings.ts. Dockview and xterm inject their own
+   stylesheets at runtime. */
+
+/* ---------- Window chrome ---------- */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  /* Chromium paints its own canvas behind a background-less page, so the
+     window's backgroundColor would not show through */
+  background: var(--background);
+  /* keeps what Chromium draws itself (scrollbars, form controls) on theme */
+  color-scheme: var(--color-scheme);
+  /* measured: the only text-rendering property that changes any pixel here
+     (optimizeLegibility changes none) */
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  /* the default for unstyled text; xterm draws with its own font option */
+  font-family: var(--ui-font-family);
+}
+
+/* Replaces the hidden native title bar (titleBarStyle: hiddenInset in
+   main/index.ts). app-region: drag keeps the native behaviors: dragging
+   moves the window, double-click zooms it. */
+#title-bar {
+  flex: none;
+  height: 36px; /* vertically centers the inset traffic lights */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: drag;
+  background: var(--title-bar-background);
+  color: var(--tab-active-foreground);
+  font: 600 13px var(--ui-font-family);
+}
+
+#workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* a flex child refuses to shrink below its content */
+}
+
+/* Global controls, settings gear at the bottom (the activity-bar pattern) */
+#sidebar {
+  flex: none;
+  width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  background: var(--tab-bar-background);
+  border-right: 1px solid var(--separator);
+}
+
+#sidebar button {
+  border: none;
+  background: transparent;
+  color: var(--tab-foreground);
+  font-size: 18px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+#sidebar button:hover {
+  color: var(--tab-active-foreground);
+}
+
+#settings-button {
+  margin-top: auto;
+}
+
+/* Dockview's root: tab strips and panes */
+#layout {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Tab strip ---------- */
+
+/* Two classes: Dockview injects its stylesheet after this one, so source
+   order can't win; specificity must */
+.dv-shell.dockview-theme-dark {
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--tab-bar-background);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-activegroup-visiblepanel-tab-color: var(--tab-active-foreground);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--tab-bar-background);
+  --dv-activegroup-hiddenpanel-tab-color: var(--tab-foreground);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--tab-active-foreground);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(
+    --tab-bar-background
+  );
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--tab-foreground);
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-separator-border: var(--separator);
+  --dv-tab-divider-color: transparent; /* the tab borders below instead */
+  --dv-drag-over-background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* VS Code style: each tab closes with a hairline, the strip is underlined,
+   the active tab wears the accent on top (transparent elsewhere so heights
+   stay equal) */
+.dv-tab {
+  position: relative;
+  border-right: 1px solid var(--separator);
+  border-top: 1px solid var(--separator);
+}
+
+.dv-tab.dv-active-tab {
+  border-top-color: var(--accent);
+}
+
+.dv-tabs-and-actions-container {
+  border-bottom: 1px solid var(--separator);
+}
+
+/* the active tab shares its pane's background; cover the strip's underline
+   where it sits so the two read as one surface */
+.dv-tab.dv-active-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--background);
+}
+
+/* our custom tab content, rendered inside Dockview's .dv-tab */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  font-family: var(--ui-font-family);
+}
+
+/* shell-set titles can be long paths */
+.tab-title {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close:hover {
+  color: var(--tab-active-foreground);
+}
+
+.new-tab {
+  font-size: 15px;
+  font-family: var(--ui-font-family);
+  color: var(--tab-foreground);
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+/* ---------- Modals ---------- */
+
+dialog {
+  background: var(--tab-bar-background);
+  color: var(--tab-active-foreground);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  padding: 16px;
+  width: 260px;
+  font-family: var(--ui-font-family);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+dialog h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+dialog input,
+dialog select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 8px;
+  font: 13px var(--ui-font-family);
+  color: inherit;
+  background: var(--background);
+  border: 1px solid var(--separator);
+  border-radius: 5px;
+  outline: none;
+}
+
+dialog input:focus,
+dialog select:focus {
+  border-color: var(--accent);
+}
+
+/* label text left, control right; the label wraps its control so clicking
+   the text focuses it */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.settings-row input,
+.settings-row select {
+  width: 140px;
+  font-size: 12px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dialog-buttons button {
+  font: 12px var(--ui-font-family);
+  color: inherit;
+  background: var(--separator);
+  border: none;
+  border-radius: 5px;
+  padding: 5px 12px;
+}
+
+.dialog-buttons button.default {
+  background: var(--accent);
+  color: white;
+}
+
+/* ---------- Terminal ---------- */
+
+.terminal-pane {
+  height: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+/* slim translucent thumb over xterm's scrollback, like a macOS overlay
+   scrollbar */
+.xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

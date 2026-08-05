@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <!-- style-src 'unsafe-inline': dockview and xterm inject <style> blocks -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'"
@@ -11,280 +12,12 @@
       rel="stylesheet"
       href="../../node_modules/@xterm/xterm/css/xterm.css"
     />
-    <!-- No dockview.css link: the dockview.js bundle injects its own copy
-         of that stylesheet at runtime -->
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        /* From theme.ts, handed over by renderer/index.ts (CSS can't import).
-           The page must paint this itself: Chromium puts its own canvas
-           behind every page, so the window's backgroundColor does NOT show
-           through a background-less page. */
-        background: var(--background);
-        /* Tell Chromium which flavor this page is, so anything it draws
-           itself (like scrollbars) matches; the value comes from the
-           active theme, like every color here */
-        color-scheme: var(--color-scheme);
-        /* Grayscale antialiasing instead of macOS's stem darkening:
-           thinner, crisper glyphs (the VS Code look). Measured: this is
-           the only text-rendering property that changes any pixel here —
-           optimizeLegibility does nothing for a ligature-less monospace
-           grid. Inherits into xterm's DOM-rendered rows. */
-        -webkit-font-smoothing: antialiased;
-      }
-      body {
-        display: flex;
-        flex-direction: column;
-        /* The inherited default for anything without its own font rule
-           (xterm's grid ignores this: it draws with its fontFamily
-           option). Without it, unstyled text falls back to Times. */
-        font-family: var(--ui-font-family);
-      }
-      /* The native title bar is hidden (titleBarStyle: hiddenInset in
-         main/index.ts); this strip takes its place. -webkit-app-region:
-         drag hands its mouse events to macOS, which keeps the native
-         title-bar behaviors: drag moves the window, double-click zooms
-         it. The traffic lights are still native, drawn by macOS inset
-         over the strip's left edge. */
-      #title-bar {
-        flex: none;
-        height: 36px; /* vertically centers the inset traffic lights */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        -webkit-app-region: drag;
-        background: var(--title-bar-background);
-        color: var(--tab-active-foreground);
-        font: 600 13px var(--ui-font-family);
-      }
-      /* Below the title bar: the sidebar and the layout, side by side */
-      #workspace {
-        flex: 1;
-        display: flex;
-        /* A flex child refuses to shrink below its content's size by
-           default; without this, a tall scrollback would push the
-           workspace past the window instead of scrolling inside xterm. */
-        min-height: 0;
-      }
-      /* The sidebar: a vertical strip of global controls — just the
-         settings gear for now (VS Code's activity-bar pattern, gear at
-         the bottom included) */
-      #sidebar {
-        flex: none;
-        width: 42px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 8px 0;
-        background: var(--tab-bar-background);
-        border-right: 1px solid var(--separator);
-      }
-      #sidebar button {
-        border: none;
-        background: transparent;
-        color: var(--tab-foreground);
-        font-size: 18px;
-        padding: 4px;
-        cursor: pointer;
-      }
-      #sidebar button:hover {
-        color: var(--tab-active-foreground);
-      }
-      #settings-button {
-        margin-top: auto; /* pinned to the bottom */
-      }
-      /* Dockview owns everything right of the sidebar: tab strip on top,
-         panes filling the rest */
-      #layout {
-        flex: 1;
-        min-width: 0; /* same shrink refusal, horizontal */
-      }
-      /* Recolor the stock dark theme from theme.ts's custom properties.
-         Dockview injects its stylesheet at runtime, after this one, so
-         source order can't win here; the two-class selector outranks the
-         theme's single-class rules instead. */
-      .dv-shell.dockview-theme-dark {
-        --dv-group-view-background-color: var(--background);
-        --dv-tabs-and-actions-container-background-color: var(
-          --tab-bar-background
-        );
-        --dv-activegroup-visiblepanel-tab-background-color: var(--background);
-        --dv-activegroup-visiblepanel-tab-color: var(--tab-active-foreground);
-        --dv-activegroup-hiddenpanel-tab-background-color: var(
-          --tab-bar-background
-        );
-        --dv-activegroup-hiddenpanel-tab-color: var(--tab-foreground);
-        --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
-        --dv-inactivegroup-visiblepanel-tab-color: var(--tab-active-foreground);
-        --dv-inactivegroup-hiddenpanel-tab-background-color: var(
-          --tab-bar-background
-        );
-        --dv-inactivegroup-hiddenpanel-tab-color: var(--tab-foreground);
-        --dv-tabs-and-actions-container-font-size: 12px;
-        --dv-separator-border: var(--separator);
-        /* Between-tab lines come from the tab borders below instead */
-        --dv-tab-divider-color: transparent;
-        --dv-drag-over-background-color: rgba(255, 255, 255, 0.1);
-      }
-      /* Tab borders, VS Code style: each tab closes with a hairline, the
-         strip is underlined against the terminal view below, and the
-         active tab wears the accent on top. The transparent top border on
-         every tab keeps heights equal. */
-      .dv-tab {
-        position: relative;
-        border-right: 1px solid var(--separator);
-        border-top: 1px solid var(--separator);
-      }
-      .dv-tab.dv-active-tab {
-        border-top-color: var(--accent);
-      }
-      .dv-tabs-and-actions-container {
-        border-bottom: 1px solid var(--separator);
-      }
-      /* The active tab shares its pane's background; cover the strip's
-         underline where it sits so the two still read as one surface */
-      .dv-tab.dv-active-tab::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -1px;
-        height: 1px;
-        background: var(--background);
-      }
-      /* Our custom tab content, rendered inside Dockview's .dv-tab. Fill
-         the tab's full height so the title and × center vertically. */
-      .tab {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        height: 100%;
-        font-family: var(--ui-font-family);
-      }
-      /* Shell-set titles can be long paths; cut them off with an ellipsis
-         instead of letting one tab swallow the bar */
-      .tab-title {
-        max-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      /* The × inherits its tab's dim color; brighten it on hover */
-      .tab-close:hover {
-        color: var(--tab-active-foreground);
-      }
-      .new-tab {
-        font-size: 15px;
-        font-family: var(--ui-font-family);
-        color: var(--tab-foreground);
-        background: transparent;
-        border: none;
-        padding: 4px 12px;
-        cursor: pointer;
-      }
-      /* The modals (rename, settings), styled to sit quietly on macOS.
-         Borders use the theme's separator so they hold up in light
-         themes, where a white hairline would vanish. */
-      dialog {
-        background: var(--tab-bar-background);
-        color: var(--tab-active-foreground);
-        border: 1px solid var(--separator);
-        border-radius: 10px;
-        padding: 16px;
-        width: 260px;
-        font-family: var(--ui-font-family);
-      }
-      dialog::backdrop {
-        background: rgba(0, 0, 0, 0.35);
-      }
-      dialog h2 {
-        margin: 0 0 10px;
-        font-size: 13px;
-        font-weight: 600;
-      }
-      dialog input,
-      dialog select {
-        box-sizing: border-box;
-        width: 100%;
-        padding: 5px 8px;
-        font: 13px var(--ui-font-family);
-        color: inherit;
-        background: var(--background);
-        border: 1px solid var(--separator);
-        border-radius: 5px;
-        outline: none;
-      }
-      dialog input:focus,
-      dialog select:focus {
-        border-color: var(--accent);
-      }
-      /* A settings row: label text left, control right. The <label>
-         wraps its control, so clicking the text focuses it. */
-      .settings-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
-        font-size: 13px;
-        white-space: nowrap;
-      }
-      .settings-row input,
-      .settings-row select {
-        width: 140px;
-        font-size: 12px;
-      }
-      .dialog-buttons {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        margin-top: 14px;
-      }
-      .dialog-buttons button {
-        font: 12px var(--ui-font-family);
-        color: inherit;
-        background: var(--separator);
-        border: none;
-        border-radius: 5px;
-        padding: 5px 12px;
-      }
-      .dialog-buttons button.default {
-        background: var(--accent);
-        color: white;
-      }
-      .terminal-pane {
-        height: 100%;
-        padding: 4px;
-        box-sizing: border-box;
-      }
-      /* xterm's scrollback lives in a scrollable div (.xterm-viewport), and
-         Chromium gives it a wide default scrollbar. Restyle it into a slim
-         translucent thumb, like a native macOS overlay scrollbar. */
-      .xterm-viewport::-webkit-scrollbar {
-        width: 6px;
-      }
-      .xterm-viewport::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      /* The colors are custom properties set by renderer/index.ts from
-         theme.ts: CSS has no way to read a script's values, so the script
-         pushes them in. */
-      .xterm-viewport::-webkit-scrollbar-thumb {
-        background: var(--scrollbar-thumb);
-        border-radius: 3px;
-      }
-      .xterm-viewport::-webkit-scrollbar-thumb:hover {
-        background: var(--scrollbar-thumb-hover);
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- The rename modal. <dialog> + showModal() gives real modality
-         (backdrop, focus trap, Escape cancels) from the browser engine.
-         (Electron has no native text-input dialog, so an in-window modal
-         is the standard pattern; VS Code does the same.) -->
+    <!-- <dialog> + showModal(): real modality (backdrop, focus trap,
+         Escape) from the browser engine. Electron has no native
+         text-input dialog. -->
     <dialog id="rename-dialog">
       <form method="dialog">
         <h2>Rename Tab</h2>
@@ -296,9 +29,8 @@
         </div>
       </form>
     </dialog>
-    <!-- The settings modal: the rename modal's pattern. Its controls
-         apply live, each change an update-settings Command; the theme
-         list is populated from THEMES by settings-dialog.ts. -->
+    <!-- Controls apply live: each change is an update-settings Command
+         (settings-dialog.ts) -->
     <dialog id="settings-dialog">
       <h2>Settings</h2>
       <label class="settings-row">
@@ -321,20 +53,20 @@
         <button id="settings-done" class="default">Done</button>
       </div>
     </dialog>
-    <!-- The painted title bar (see its CSS rule above) -->
+    <!-- The painted title bar (style.css); the native one is hidden -->
     <div id="title-bar">Terminal</div>
     <div id="workspace">
       <div id="sidebar">
         <button id="settings-button" title="Settings">⚙</button>
       </div>
-      <!-- Dockview renders the tab strip and panes in here (see tabs.ts) -->
+      <!-- Dockview renders the tab strips and panes in here (tabs.ts) -->
       <div id="layout"></div>
     </div>
+    <!-- classic scripts providing globals (how these packages ship);
+         the app itself is a native ES module -->
     <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
     <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
     <script src="../../node_modules/dockview/dist/dockview.js"></script>
-    <!-- type="module" lets renderer.js use import (it imports theme.js).
-         The tags above stay classic scripts providing globals. -->
     <script type="module" src="../../dist/renderer/index.js"></script>
   </body>
 </html>

@@ -136,6 +136,7 @@ src/
     bus.ts             dispatch() into the renderer; Event intake (the read model)
   renderer/
     index.html         the page: title bar, sidebar, the layout root, the modals
+    style.css          the page's stylesheet; theme values arrive as custom properties
     index.ts           boot: settings → CSS, cable wiring, the first tab
     tabs.ts            Tab store + executeCommand (the consumer) + Dockview, kept behind both
     rename-dialog.ts   the rename modal
