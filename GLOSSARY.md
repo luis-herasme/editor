@@ -155,6 +155,26 @@ rarely an exact multiple of the cell height, so a leftover strip of a few
 pixels always exists past the last row. Terminals hide it by painting it the
 same color as the screen.
 
+## Code - OSS / openvscode-server / Open VSX
+
+Three names that come up around embedding VS Code. **Code - OSS** is the
+MIT-licensed open-source codebase behind VS Code; Microsoft's branded "VS
+Code" is a proprietary build of it, and the branding plus its extension
+marketplace are licensed for official builds only. **openvscode-server** is a
+fork of Code - OSS (by Gitpod) that serves the full editor over HTTP so it
+runs in any browser — which is what makes it embeddable in our renderer.
+**Open VSX** is the vendor-neutral extension registry such forks use instead
+of Microsoft's marketplace; it has most popular extensions, minus some
+Microsoft-proprietary ones (e.g. Pylance).
+
+## TUI (terminal user interface)
+
+A program whose entire interface is drawn inside a terminal's character grid
+using escape sequences — vim, htop, lazygit. The opposite approach to this
+app: a TUI lives *inside* a terminal emulator and inherits the grid's limits
+(no images, no proportional fonts, no embedded web pages); this app *is* the
+terminal emulator, with a full browser page around the grid.
+
 ## Race condition
 
 A bug where correctness depends on which of two independent things happens to
