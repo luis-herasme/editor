@@ -1,5 +1,6 @@
-// The rename modal. Enter/Rename commits, Escape/Cancel closes; the commit
-// is a set-tab-title Command, so the UI stays an API client.
+// The rename modal, opened from the tab's context menu. Enter/Rename
+// commits, Escape/Cancel closes; the commit is a set-tab-title Command,
+// so the UI stays an API client.
 import { executeCommand, getTabTitle, focusActiveTab } from "./tabs.js";
 import { requireElement } from "./dom.js";
 
@@ -19,23 +20,6 @@ export function openRenameDialog(id: number): void {
   dialog.showModal();
   input.select();
 }
-
-// double-clicking a tab's title also opens the dialog; delegated from the
-// layout root via the data-tab-id each tab carries
-requireElement("layout").addEventListener("dblclick", (event) => {
-  const target = event.target;
-  if (!(target instanceof Element)) {
-    return;
-  }
-  const button = target.closest(".tab");
-  if (!(button instanceof HTMLElement)) {
-    return;
-  }
-  if (!button.dataset.tabId) {
-    return;
-  }
-  openRenameDialog(Number(button.dataset.tabId));
-});
 
 requireElement("rename-cancel").addEventListener("click", () => {
   dialog.close();

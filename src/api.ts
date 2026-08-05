@@ -39,7 +39,11 @@ export type Command =
       path: string;
       baseTabId?: number;
       groupId?: string;
-    };
+    }
+  // Toggle the tab's group between filling the window and its normal
+  // place in the layout (the tmux-zoom gesture). Double-clicking a tab
+  // issues this.
+  | { type: "toggle-maximize"; id?: number };
 
 // Facts, out of the editor. Every event carries the state it produced, so
 // whatever an observer heard last is the whole truth. tab-moved covers
@@ -51,7 +55,8 @@ export type EditorEvent =
   | { type: "tab-moved"; id: number; state: EditorState }
   | { type: "tab-activated"; id: number; state: EditorState }
   // carries the settings as they actually took effect, not as requested
-  | { type: "settings-changed"; settings: Settings; state: EditorState };
+  | { type: "settings-changed"; settings: Settings; state: EditorState }
+  | { type: "maximize-changed"; id: number; state: EditorState };
 
 // What the user can adjust at runtime. `theme` names a THEMES entry
 // (theme.ts); it stays a plain string so this file exports types only,
@@ -88,4 +93,5 @@ export interface EditorState {
   tabs: TabInfo[]; // every tab, in visual order
   layout: LayoutNode | null; // null only before the first tab exists
   activeId: number;
+  maximizedGroupId: string | null; // the group filling the window, if any
 }

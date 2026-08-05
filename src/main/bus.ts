@@ -15,6 +15,7 @@ let editorState: EditorState = {
   tabs: [],
   layout: null,
   activeId: -1,
+  maximizedGroupId: null,
 };
 ipcMain.on("event", (_event, event: EditorEvent) => {
   editorState = event.state;

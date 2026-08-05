@@ -284,9 +284,10 @@ change it and update this list.
   backdrop, focus trap and Escape-cancels from the browser engine) because
   Electron has no native text-input dialog; an in-window modal is the
   standard Electron pattern; VS Code's input boxes work the same way.
-  Double-click a tab is the shortcut to the same modal. Either way the
-  rename commits by issuing the same `set-tab-title` Command any client
-  would.
+  The rename commits by issuing the same `set-tab-title` Command any
+  client would. (Double-click was originally a shortcut to this modal;
+  since 2026-08 it toggles maximize instead, and the context menu is the
+  rename affordance.)
 - **The layout engine: Dockview, kept behind the bus.** (Decided 2026-08
   when tab reordering arrived.) The tab strip and panes are rendered by
   [Dockview](https://dockview.dev) (`dockview`, the vanilla package), a
@@ -316,7 +317,9 @@ change it and update this list.
   and whole-group drags, until a feature needs them; divider sizes are
   not modeled, so resizing a split emits no Event; and Dockview's built-in
   tab-overflow dropdown is disabled, because it cannot render our custom
-  tab components (the strip scrolls instead).
+  tab components (the strip scrolls instead). Double-clicking a tab
+  issues `toggle-maximize` (2026-08, the tmux-zoom gesture): the tab's
+  group fills the window and `EditorState.maximizedGroupId` records it.
 - **The title bar is painted, not native.** (Decided 2026-08.) macOS
   offers no way to recolor the standard title bar, so the window is
   created with `titleBarStyle: "hiddenInset"`: the traffic lights stay
@@ -380,8 +383,9 @@ change it and update this list.
   plugin for them ships no browser build), sanitized by DOMPurify because
   Markdown may embed raw HTML, and styled by github-markdown-css: GitHub's
   own extracted stylesheet, its dark or light file swapped by settings.ts
-  to follow the theme. The view element itself wears `.markdown-body`, so
-  GitHub's canvas color fills the whole pane instead of framing a card.
+  to follow the theme. The view element itself wears `.markdown-body`,
+  and the document surface is overridden to the editor's own background,
+  so a markdown pane sits flush with the rest of the window.
   The markdown libraries are imported as their self-contained browser ESM
   bundles, by path like zod, not as classic-script globals; the two
   bundles without adjacent declaration files borrow their types from the

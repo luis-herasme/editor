@@ -207,11 +207,20 @@ function findGroup(groupId: string): DockviewGroupPanel | undefined {
   return undefined;
 }
 
-// Double-clicking a strip's empty space opens a tab in that group. The
-// void container is the strip's leftover space, so tabs and + never match.
+// Double-click: on a tab, toggle its group full-window; on a strip's
+// empty space (the void container), a new tab in that group. Renaming
+// lives in the tab's context menu.
 layoutElement.addEventListener("dblclick", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) {
+    return;
+  }
+  const tabElement = target.closest(".tab");
+  if (tabElement instanceof HTMLElement && tabElement.dataset.tabId) {
+    executeCommand({
+      type: "toggle-maximize",
+      id: Number(tabElement.dataset.tabId),
+    });
     return;
   }
   if (!target.closest(".dv-void-container")) {
@@ -310,11 +319,19 @@ function collectTabs(node: LayoutNode, into: TabInfo[]): void {
 
 // Every Event carries one of these: the whole visible truth (api.ts).
 function snapshot(): EditorState {
+  let maximizedGroupId: string | null = null;
+  for (const group of dockview.api.groups) {
+    if (group.api.isMaximized()) {
+      maximizedGroupId = group.id;
+      break;
+    }
+  }
   if (dockview.api.panels.length === 0) {
     return {
       tabs: [],
       layout: null,
       activeId,
+      maximizedGroupId,
     };
   }
   const serialized = dockview.api.toJSON();
@@ -329,6 +346,7 @@ function snapshot(): EditorState {
     tabs: tabList,
     layout,
     activeId,
+    maximizedGroupId,
   };
 }
 
@@ -370,7 +388,7 @@ function buildTabElement(id: number): {
   const titleElement = document.createElement("span");
   titleElement.className = "tab-title";
   titleElement.textContent = "Untitled";
-  titleElement.title = "Double-click to rename";
+  titleElement.title = "Double-click to fill the window";
 
   const closeElement = document.createElement("span");
   closeElement.className = "tab-close";
@@ -745,6 +763,28 @@ export function executeCommand(command: Command): void {
         }
       }
       void openMarkdownTab(command.path, command.baseTabId, group);
+      return;
+    }
+    case "toggle-maximize": {
+      let id = command.id;
+      if (id === undefined) {
+        id = activeId;
+      }
+      const tab = tabs.get(id);
+      if (!tab) {
+        return;
+      }
+      const group = tab.panel.group;
+      if (group.api.isMaximized()) {
+        group.api.exitMaximized();
+      } else {
+        dockview.api.maximizeGroup(tab.panel);
+      }
+      window.bridge.emitEvent({
+        type: "maximize-changed",
+        id,
+        state: snapshot(),
+      });
       return;
     }
   }

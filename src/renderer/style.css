@@ -245,15 +245,21 @@ dialog select:focus {
 
 /* ---------- Markdown view ---------- */
 
-/* The element also wears .markdown-body, so github-markdown-css paints
-   its canvas color across the whole pane; the padding formula centers
-   the content at GitHub's reading width */
+/* The element also wears .markdown-body so github-markdown-css styles
+   the content; the padding formula centers it at GitHub's reading width */
 .markdown-view {
   height: 100%;
   overflow: auto;
   box-sizing: border-box;
   outline: none;
   padding: 24px max(32px, calc((100% - 880px) / 2));
+}
+
+/* The document surface follows the editor's theme, not GitHub's own
+   canvas color. Both classes: github-markdown-css loads after this file,
+   so one class would tie and lose */
+.markdown-view.markdown-body {
+  background-color: var(--background);
 }
 
 /* GitHub centers rendered diagrams */
