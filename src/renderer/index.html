@@ -23,9 +23,10 @@
            behind every page, so the window's backgroundColor does NOT show
            through a background-less page. */
         background: var(--background);
-        /* Tell Chromium this page is dark, so anything it draws itself
-           (like scrollbars) uses its dark variant */
-        color-scheme: dark;
+        /* Tell Chromium which flavor this page is, so anything it draws
+           itself (like scrollbars) matches; the value comes from the
+           active theme, like every color here */
+        color-scheme: var(--color-scheme);
       }
       body {
         display: flex;
@@ -48,14 +49,47 @@
         color: var(--tab-active-foreground);
         font: 600 13px system-ui;
       }
-      /* Dockview owns everything below the window chrome: tab strip on top,
+      /* Below the title bar: the sidebar and the layout, side by side */
+      #workspace {
+        flex: 1;
+        display: flex;
+        /* A flex child refuses to shrink below its content's size by
+           default; without this, a tall scrollback would push the
+           workspace past the window instead of scrolling inside xterm. */
+        min-height: 0;
+      }
+      /* The sidebar: a vertical strip of global controls — just the
+         settings gear for now (VS Code's activity-bar pattern, gear at
+         the bottom included) */
+      #sidebar {
+        flex: none;
+        width: 42px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 0;
+        background: var(--tab-bar-background);
+        border-right: 1px solid var(--separator);
+      }
+      #sidebar button {
+        border: none;
+        background: transparent;
+        color: var(--tab-foreground);
+        font-size: 18px;
+        padding: 4px;
+        cursor: pointer;
+      }
+      #sidebar button:hover {
+        color: var(--tab-active-foreground);
+      }
+      #settings-button {
+        margin-top: auto; /* pinned to the bottom */
+      }
+      /* Dockview owns everything right of the sidebar: tab strip on top,
          panes filling the rest */
       #layout {
         flex: 1;
-        /* A flex child refuses to shrink below its content's height by
-           default; without this, a tall scrollback would push the layout
-           past the window instead of scrolling inside xterm. */
-        min-height: 0;
+        min-width: 0; /* same shrink refusal, horizontal */
       }
       /* Recolor the stock dark theme from theme.ts's custom properties.
          Dockview injects its stylesheet at runtime, after this one, so
@@ -140,11 +174,13 @@
         padding: 4px 12px;
         cursor: pointer;
       }
-      /* The rename modal, styled to sit quietly on macOS */
+      /* The modals (rename, settings), styled to sit quietly on macOS.
+         Borders use the theme's separator so they hold up in light
+         themes, where a white hairline would vanish. */
       dialog {
         background: var(--tab-bar-background);
         color: var(--tab-active-foreground);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--separator);
         border-radius: 10px;
         padding: 16px;
         width: 260px;
@@ -158,19 +194,37 @@
         font-size: 13px;
         font-weight: 600;
       }
-      dialog input {
+      dialog input,
+      dialog select {
         box-sizing: border-box;
         width: 100%;
         padding: 5px 8px;
         font: 13px system-ui;
         color: inherit;
         background: var(--background);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        border: 1px solid var(--separator);
         border-radius: 5px;
         outline: none;
       }
-      dialog input:focus {
+      dialog input:focus,
+      dialog select:focus {
         border-color: var(--accent);
+      }
+      /* A settings row: label text left, control right. The <label>
+         wraps its control, so clicking the text focuses it. */
+      .settings-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .settings-row input,
+      .settings-row select {
+        width: 140px;
+        font-size: 12px;
       }
       .dialog-buttons {
         display: flex;
@@ -181,7 +235,7 @@
       .dialog-buttons button {
         font: 12px system-ui;
         color: inherit;
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--separator);
         border: none;
         border-radius: 5px;
         padding: 5px 12px;
@@ -232,10 +286,36 @@
         </div>
       </form>
     </dialog>
+    <!-- The settings modal: the rename modal's pattern. Its controls
+         apply live, each change an update-settings Command; the theme
+         list is populated from THEMES by settings-dialog.ts. -->
+    <dialog id="settings-dialog">
+      <h2>Settings</h2>
+      <label class="settings-row">
+        Theme
+        <select id="settings-theme"></select>
+      </label>
+      <label class="settings-row">
+        Font family
+        <input id="settings-font-family" type="text" spellcheck="false" />
+      </label>
+      <label class="settings-row">
+        Font size
+        <input id="settings-font-size" type="number" min="8" max="32" />
+      </label>
+      <div class="dialog-buttons">
+        <button id="settings-done" class="default">Done</button>
+      </div>
+    </dialog>
     <!-- The painted title bar (see its CSS rule above) -->
     <div id="title-bar">Terminal</div>
-    <!-- Dockview renders the tab strip and panes in here (see tabs.ts) -->
-    <div id="layout"></div>
+    <div id="workspace">
+      <div id="sidebar">
+        <button id="settings-button" title="Settings">⚙</button>
+      </div>
+      <!-- Dockview renders the tab strip and panes in here (see tabs.ts) -->
+      <div id="layout"></div>
+    </div>
     <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
     <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
     <script src="../../node_modules/dockview/dist/dockview.js"></script>

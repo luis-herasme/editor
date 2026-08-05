@@ -4,19 +4,8 @@
 import { executeCommand, getTabTitle, focusActiveTab } from "./tabs.js";
 import { requireElement } from "./dom.js";
 
-// Re-declared as typed consts because instanceof narrowing doesn't flow
-// into the functions below.
-const dialogLookup = document.getElementById("rename-dialog");
-if (!(dialogLookup instanceof HTMLDialogElement)) {
-  throw new Error("#rename-dialog is missing or is not a <dialog>");
-}
-const dialog: HTMLDialogElement = dialogLookup;
-
-const inputLookup = document.getElementById("rename-input");
-if (!(inputLookup instanceof HTMLInputElement)) {
-  throw new Error("#rename-input is missing or is not an <input>");
-}
-const input: HTMLInputElement = inputLookup;
+const dialog = requireElement("rename-dialog", HTMLDialogElement);
+const input = requireElement("rename-input", HTMLInputElement);
 
 let targetId = -1;
 

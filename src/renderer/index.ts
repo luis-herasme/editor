@@ -4,19 +4,13 @@
 //
 // It runs as a native ES module (<script type="module"> in index.html);
 // window.bridge is the cable to main (typed in ipc/bridge.ts).
-import { THEME } from "../theme.js";
 import type { Command } from "../api.js";
+import { applyCssVariables } from "./settings.js";
 import { executeCommand, handleShellData, handleShellExit } from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
+import "./settings-dialog.js"; // wires the ⚙ button and the settings modal
 
-// CSS can't read THEME directly, so every entry is handed over as a custom
-// property, camelCase key to kebab-case var (tabBarBackground becomes
-// --tab-bar-background).
-for (const [key, value] of Object.entries(THEME)) {
-  const cssName =
-    "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
-  document.documentElement.style.setProperty(cssName, String(value));
-}
+applyCssVariables(); // the saved settings, handed to CSS (see settings.ts)
 
 // The cable, wired: everything main can send, and who handles it.
 window.bridge.onCommand(executeCommand); // the bus (menus today, a server tomorrow)

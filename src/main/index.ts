@@ -3,7 +3,7 @@
 // the PTYs, menus.ts owns both native menus, bus.ts owns the command bus.
 import { app, BrowserWindow } from "electron";
 import * as path from "path";
-import { THEME } from "../theme.js";
+import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
 import { installAppMenu } from "./menus.js";
 
@@ -11,9 +11,11 @@ function createWindow(): void {
   const browserWindow = new BrowserWindow({
     width: 900,
     height: 600,
-    // Shown until the page's first paint: the same THEME color the page
-    // then paints itself, so startup doesn't flash a different color.
-    backgroundColor: THEME.background,
+    // Shown until the page's first paint. The user's chosen theme lives
+    // in the renderer's localStorage, unreadable from here, so this is
+    // the default theme's background: a non-default theme repaints on
+    // first paint (one frame). Revisit if a config file ever lands.
+    backgroundColor: THEMES[DEFAULT_SETTINGS.theme].background,
     // macOS offers no way to recolor the standard title bar, so hide it:
     // the traffic lights stay (inset over the page), and the page's own
     // #title-bar strip takes over the rest (color, title, drag region).

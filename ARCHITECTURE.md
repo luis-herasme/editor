@@ -124,8 +124,8 @@ the public interface at the top.
 
 ```
 src/
-  api.ts             the public interface: Command / EditorEvent / EditorState
-  theme.ts           every visual setting, imported by both sides
+  api.ts             the public interface: Command / EditorEvent / EditorState / Settings
+  theme.ts           the theme palettes (THEMES) and default settings, imported by both sides
   ipc/               the cable
     bridge.ts          the contract type (window.bridge)
     preload.cts        its implementation — the one CommonJS file
@@ -135,10 +135,12 @@ src/
     menus.ts           app menu + tab context menu — menu items are Command sources
     bus.ts             dispatch() into the renderer; Event intake (the read model)
   renderer/
-    index.html         the page: the layout root, the rename dialog
-    index.ts           boot: theme → CSS, cable wiring, the first tab
+    index.html         the page: title bar, sidebar, the layout root, the modals
+    index.ts           boot: settings → CSS, cable wiring, the first tab
     tabs.ts            Tab store + executeCommand (the consumer) + Dockview, kept behind both
     rename-dialog.ts   the rename modal
+    settings.ts        the current settings: value, persistence, hand-off to CSS
+    settings-dialog.ts the settings modal — controls are Command sources
     dom.ts             requireElement: strict lookups of index.html's fixed elements
 ```
 
@@ -308,6 +310,27 @@ change it and update this list.
   window-edge drops (Dockview has no public root-relative placement API)
   and whole-group drags, until a feature needs them; divider sizes are
   not modeled, so resizing a split emits no Event.
+- **Settings: themes and fonts, runtime-changeable, behind the bus.**
+  (Extends the theme.ts decision: the single `THEME` const became `THEMES`,
+  a set of named palettes, plus `Settings` — which palette is active, font
+  family, font size.) The current value lives in `renderer/settings.ts`
+  and persists in localStorage: settings are renderer-only state, so no
+  IPC message was needed — the first entry from the "renderer-only"
+  feature list to ship. Changes enter as an `update-settings` Command
+  (the settings dialog's controls, a devtools call, and a future agent
+  all use the same door), and the consumer *corrects* rather than
+  rejects: an unknown theme name is ignored, a wild font size clamped —
+  then a `settings-changed` Event reports the values as they actually
+  took, and xterm's options are updated on every live terminal with an
+  explicit re-fit (a font change alters the cell size without touching
+  any pane's box, so the ResizeObservers stay silent). The entry point
+  is a sidebar — a vertical strip on the left, VS Code's activity-bar
+  pattern, holding only the settings gear for now. Costs we accept:
+  main can't read localStorage at window-creation time, so the pre-paint
+  window color is the default theme's (one wrong-colored frame on a
+  non-default theme — a config file would fix this if one ever lands),
+  and a second app instance finds the storage locked, so settings.ts
+  treats persistence as best-effort rather than crashing.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
@@ -327,8 +350,9 @@ change it and update this list.
 
 A quick map so features land on the right side of the cable:
 
-- **Renderer-only** (no protocol change): themes/fonts, search (xterm
-  search addon), clickable links, scrollback size, ⌘K clear.
+- **Renderer-only** (no protocol change): search (xterm search addon),
+  clickable links, scrollback size, ⌘K clear. (Themes/fonts shipped from
+  this list — see the settings decision.)
 - **Main-only** (no protocol change): default working directory, shell
   choice, window size persistence.
 - **New capabilities** now usually mean new Commands/Events in `api.ts` —

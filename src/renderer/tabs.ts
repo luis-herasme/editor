@@ -9,7 +9,7 @@
 // in onWillDrop and re-issued as a Command, so gestures and API calls enter
 // through the same door, executeCommand (see ARCHITECTURE.md, "The layout
 // engine"). Nothing outside this file knows Dockview exists.
-import { THEME } from "../theme.js";
+import { getSettings, currentTheme, updateSettings } from "./settings.js";
 import type { Command, EditorState, LayoutNode, TabInfo } from "../api.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
 import type { Terminal as XtermTerminal } from "@xterm/xterm";
@@ -45,6 +45,7 @@ interface Tab {
   titleElement: HTMLElement; // the text inside our custom tab: the tab's title
   titlePinned: boolean; // an explicit rename beats the shell's automatic titles
   observer: ResizeObserver; // re-fits the grid when the pane's box changes
+  fitAddon: XtermFitAddon; // for update-settings: a font change resizes no box
 }
 
 const tabs = new Map<number, Tab>();
@@ -364,6 +365,17 @@ function copyOnCmdC(event: KeyboardEvent): boolean {
   return true;
 }
 
+// The active theme in the names xterm's `theme` option expects
+function xtermTheme() {
+  const theme = currentTheme();
+  return {
+    background: theme.background,
+    foreground: theme.foreground,
+    cursor: theme.cursor,
+    selectionBackground: theme.selectionBackground,
+  };
+}
+
 function createTab(group?: DockviewGroupPanel): void {
   const id = nextId++;
 
@@ -417,11 +429,12 @@ function createTab(group?: DockviewGroupPanel): void {
     position, // undefined targets the active group
   });
 
+  const settings = getSettings();
   const terminal = new Terminal({
-    fontFamily: THEME.fontFamily,
-    fontSize: THEME.fontSize,
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
     cursorBlink: true,
-    theme: { background: THEME.background },
+    theme: xtermTheme(),
   });
   const fitAddon = new FitAddon.FitAddon();
   terminal.loadAddon(fitAddon);
@@ -440,6 +453,7 @@ function createTab(group?: DockviewGroupPanel): void {
     titleElement,
     titlePinned: false,
     observer,
+    fitAddon,
   });
   window.bridge.emitEvent({
     type: "tab-opened",
@@ -635,6 +649,26 @@ export function executeCommand(command: Command): void {
       window.bridge.emitEvent({
         type: "tab-retitled",
         id,
+        state: snapshot(),
+      });
+      return;
+    }
+    case "update-settings": {
+      // settings.ts validates, persists and restyles the page; the live
+      // terminals are tab state, so they update here. The explicit fit:
+      // a font change alters the cell size while every pane's box stays
+      // the same, so the ResizeObservers stay silent.
+      updateSettings(command.settings);
+      const settings = getSettings();
+      for (const tab of tabs.values()) {
+        tab.terminal.options.fontFamily = settings.fontFamily;
+        tab.terminal.options.fontSize = settings.fontSize;
+        tab.terminal.options.theme = xtermTheme();
+        tab.fitAddon.fit();
+      }
+      window.bridge.emitEvent({
+        type: "settings-changed",
+        settings,
         state: snapshot(),
       });
       return;

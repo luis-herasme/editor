@@ -75,17 +75,19 @@ the other end echoes it back.
 | File                           | Role                                                         |
 | ------------------------------ | ------------------------------------------------------------ |
 | `src/api.ts`                   | **The public interface**: every Command in, every Event out  |
-| `src/theme.ts`                 | All visual settings (colors, font) in one importable place   |
+| `src/theme.ts`                 | The theme palettes (`THEMES`) and the default settings       |
 | `src/ipc/bridge.ts`            | The IPC contract as a type (`window.bridge`)                 |
 | `src/ipc/preload.cts`          | Security bridge: implements `window.bridge`, nothing else    |
 | `src/main/index.ts`            | Main boot: the window and the app lifecycle                  |
 | `src/main/shells.ts`           | One PTY per tab: spawn/write/resize/kill, relays data/exit   |
 | `src/main/menus.ts`            | App menu + tab context menu (menu items issue Commands)      |
 | `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
-| `src/renderer/index.html`      | The page: tab bar, panes, the rename dialog                  |
-| `src/renderer/index.ts`        | Renderer boot: theme → CSS, cable wiring, first tab          |
+| `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
+| `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first tab       |
 | `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
 | `src/renderer/rename-dialog.ts`| The rename modal                                             |
+| `src/renderer/settings.ts`     | Current settings: value, localStorage persistence, → CSS     |
+| `src/renderer/settings-dialog.ts`| The settings modal (each control issues a Command)         |
 | `tsconfig.json`                | Compiler settings; `tsc` mirrors `src/` into `dist/` 1:1     |
 
 There is deliberately no bundler, no framework, and no abstraction for

@@ -38,7 +38,11 @@ export type Command =
   // Rename a tab. An explicit rename pins the title: later `transient`
   // renames (the shell's automatic OSC titles) are ignored for that tab.
   // An explicit `title: ""` reverts to "Untitled" and unpins.
-  | { type: "set-tab-title"; id?: number; title: string; transient?: boolean };
+  | { type: "set-tab-title"; id?: number; title: string; transient?: boolean }
+  // Change any subset of the settings; omitted fields keep their value.
+  // Invalid values are corrected, not rejected: an unknown theme name is
+  // ignored (like an unknown group id) and a wild font size is clamped.
+  | { type: "update-settings"; settings: Partial<Settings> };
 
 // Facts, out of the editor. Every event carries the state it produced,
 // so whatever an observer heard last is the whole truth. tab-moved covers
@@ -49,7 +53,20 @@ export type EditorEvent =
   | { type: "tab-closed"; id: number; state: EditorState }
   | { type: "tab-retitled"; id: number; state: EditorState }
   | { type: "tab-moved"; id: number; state: EditorState }
-  | { type: "tab-activated"; id: number; state: EditorState };
+  | { type: "tab-activated"; id: number; state: EditorState }
+  // Carries the settings as they actually took effect (validated and
+  // clamped), so observers hear the truth, not the request.
+  | { type: "settings-changed"; settings: Settings; state: EditorState };
+
+// What the user can adjust at runtime. `theme` names an entry in
+// theme.ts's THEMES ("dark", "light", ...); it stays a plain string here
+// so this file keeps exporting types only — the consumer validates the
+// name at runtime.
+export interface Settings {
+  theme: string;
+  fontFamily: string;
+  fontSize: number;
+}
 
 export interface TabInfo {
   id: number;
