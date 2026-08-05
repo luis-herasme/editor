@@ -4,6 +4,8 @@
 // calls enter through the same door. Nothing outside this file knows
 // Dockview exists (ARCHITECTURE.md, "The layout engine").
 import { getSettings, currentTheme, updateSettings } from "./settings.js";
+import { renderMarkdown } from "./markdown.js";
+import { registerMarkdownLinks } from "./markdown-links.js";
 import type { Command, EditorState, LayoutNode, TabInfo } from "../api.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
 import type { Terminal as XtermTerminal } from "@xterm/xterm";
@@ -31,14 +33,25 @@ declare global {
   }
 }
 
-interface Tab {
+interface TabCommon {
   panel: IDockviewPanel; // the tab's Dockview identity
-  terminal: XtermTerminal;
   titleElement: HTMLElement;
   titlePinned: boolean; // an explicit rename beats the shell's OSC titles
+}
+
+interface TerminalTab extends TabCommon {
+  kind: "terminal";
+  terminal: XtermTerminal;
   observer: ResizeObserver; // re-fits the grid when the pane's box changes
   fitAddon: XtermFitAddon; // for update-settings: a font change moves no box
 }
+
+interface MarkdownTab extends TabCommon {
+  kind: "markdown";
+  element: HTMLElement; // the focus target (scrollable view)
+}
+
+type Tab = TerminalTab | MarkdownTab;
 
 const tabs = new Map<number, Tab>();
 let nextId = 0; // tab ids are born here
@@ -171,8 +184,11 @@ dockview.api.onDidActivePanelChange((event) => {
   const tab = tabs.get(id);
   // terminal.element is undefined until terminal.open(); createTab focuses
   // the new terminal itself
-  if (tab && tab.terminal.element) {
+  if (tab?.kind === "terminal" && tab.terminal.element) {
     tab.terminal.focus();
+  }
+  if (tab?.kind === "markdown") {
+    tab.element.focus();
   }
   window.bridge.emitEvent({
     type: "tab-activated",
@@ -254,6 +270,7 @@ function buildLayout(
       tabList.push({
         id: Number(panelId),
         title,
+        kind: tab.kind,
       });
     }
     return {
@@ -318,14 +335,17 @@ function snapshot(): EditorState {
 // xterm draws its own selection, so the browser's Cmd+C sees nothing to
 // copy. Fires for keydown, keypress AND keyup; act on keydown only.
 function copyOnCmdC(event: KeyboardEvent): boolean {
-  const terminal = tabs.get(activeId)?.terminal;
+  const tab = tabs.get(activeId);
+  if (tab?.kind !== "terminal") {
+    return true;
+  }
   if (
     event.type === "keydown" &&
     event.metaKey &&
     event.key === "c" &&
-    terminal?.hasSelection()
+    tab.terminal.hasSelection()
   ) {
-    navigator.clipboard.writeText(terminal.getSelection());
+    navigator.clipboard.writeText(tab.terminal.getSelection());
     return false;
   }
   return true;
@@ -342,16 +362,13 @@ function xtermTheme() {
   };
 }
 
-function createTab(group?: DockviewGroupPanel): void {
-  const id = nextId++;
-
-  const paneElement = document.createElement("div");
-  paneElement.className = "terminal-pane";
-
+// The strip chrome every tab kind shares: title, ×, context menu
+function buildTabElement(id: number): {
+  tabElement: HTMLElement;
+  titleElement: HTMLElement;
+} {
   const titleElement = document.createElement("span");
   titleElement.className = "tab-title";
-  // a title is display text, not an id: no numbering, and the shell
-  // usually retitles the tab within moments
   titleElement.textContent = "Untitled";
   titleElement.title = "Double-click to rename";
 
@@ -377,6 +394,21 @@ function createTab(group?: DockviewGroupPanel): void {
     event.preventDefault();
     window.bridge.showTabMenu(id);
   });
+  return {
+    tabElement,
+    titleElement,
+  };
+}
+
+function createTab(group?: DockviewGroupPanel): void {
+  const id = nextId++;
+
+  const paneElement = document.createElement("div");
+  paneElement.className = "terminal-pane";
+
+  // a title is display text, not an id: no numbering, and the shell
+  // usually retitles the tab within moments
+  const { tabElement, titleElement } = buildTabElement(id);
 
   // inactive: activation goes through the bus below, once the tab is
   // registered, so the Event carries a complete snapshot
@@ -412,6 +444,7 @@ function createTab(group?: DockviewGroupPanel): void {
   observer.observe(paneElement);
 
   tabs.set(id, {
+    kind: "terminal",
     panel,
     terminal,
     titleElement,
@@ -463,6 +496,75 @@ function createTab(group?: DockviewGroupPanel): void {
       transient: true,
     });
   });
+
+  registerMarkdownLinks(terminal, (path) => {
+    executeCommand({
+      type: "open-markdown",
+      path,
+      baseTabId: id,
+    });
+  });
+}
+
+function basename(filePath: string): string {
+  const slash = filePath.lastIndexOf("/");
+  if (slash === -1) {
+    return filePath;
+  }
+  return filePath.slice(slash + 1);
+}
+
+// async: the content comes over the cable (file:read in main)
+async function openMarkdownTab(
+  filePath: string,
+  baseTabId: number | undefined,
+  group: DockviewGroupPanel | undefined,
+): Promise<void> {
+  const result = await window.bridge.readFile({
+    path: filePath,
+    baseTabId,
+  });
+  const id = nextId++;
+  const { tabElement, titleElement } = buildTabElement(id);
+  let element: HTMLElement;
+  let title = basename(filePath);
+  if ("error" in result) {
+    element = renderMarkdown(`# Could not open\n\n\`${filePath}\`\n\n${result.error}`);
+  } else {
+    element = renderMarkdown(result.content);
+    title = basename(result.resolvedPath);
+  }
+  titleElement.textContent = title;
+
+  let position: { referenceGroup: DockviewGroupPanel } | undefined;
+  if (group !== undefined) {
+    position = { referenceGroup: group };
+  }
+  handOffPaneElement = element;
+  handOffTabElement = tabElement;
+  const panel = dockview.api.addPanel({
+    id: String(id),
+    component: "markdown",
+    tabComponent: "markdown-tab",
+    title,
+    inactive: true,
+    position,
+  });
+
+  tabs.set(id, {
+    kind: "markdown",
+    panel,
+    titleElement,
+    titlePinned: true, // no shell writes here; nothing transient to race
+    element,
+  });
+  window.bridge.emitEvent({
+    type: "tab-opened",
+    id,
+    state: snapshot(),
+  });
+  panel.api.setActive();
+  element.focus();
 }
 
 // The single place a Command becomes editor behavior.
@@ -480,11 +582,16 @@ export function executeCommand(command: Command): void {
       return;
     }
     case "close-tab": {
-      // ask main to kill the shell; the tab disappears when the exit lands
       let id = command.id;
       if (id === undefined) {
         id = activeId;
       }
+      // a markdown tab has no shell whose exit would remove it
+      if (tabs.get(id)?.kind === "markdown") {
+        removeTab(id);
+        return;
+      }
+      // ask main to kill the shell; the tab disappears when the exit lands
       window.bridge.killShell(id);
       return;
     }
@@ -614,6 +721,9 @@ export function executeCommand(command: Command): void {
       updateSettings(command.settings);
       const settings = getSettings();
       for (const tab of tabs.values()) {
+        if (tab.kind !== "terminal") {
+          continue;
+        }
         tab.terminal.options.fontFamily = settings.fontFamily;
         tab.terminal.options.fontSize = settings.fontSize;
         tab.terminal.options.theme = xtermTheme();
@@ -626,23 +736,41 @@ export function executeCommand(command: Command): void {
       });
       return;
     }
+    case "open-markdown": {
+      let group: DockviewGroupPanel | undefined;
+      if (command.groupId !== undefined) {
+        group = findGroup(command.groupId);
+        if (!group) {
+          return;
+        }
+      }
+      void openMarkdownTab(command.path, command.baseTabId, group);
+      return;
+    }
   }
 }
 
 export function handleShellData(message: ShellDataMessage): void {
-  tabs.get(message.id)?.terminal.write(message.data);
+  const tab = tabs.get(message.id);
+  if (tab?.kind !== "terminal") {
+    return;
+  }
+  tab.terminal.write(message.data);
 }
 
-// The one removal path for a tab: its shell exited. When the last shell
-// exits, main closes the whole window.
-export function handleShellExit(id: number): void {
+// The one removal path for a tab: a shell exit (wired to it in index.ts)
+// or a markdown tab's close-tab. When the last shell exits, main closes
+// the whole window.
+export function removeTab(id: number): void {
   const tab = tabs.get(id);
   if (!tab) {
     return;
   }
   tabs.delete(id);
-  tab.observer.disconnect();
-  tab.terminal.dispose();
+  if (tab.kind === "terminal") {
+    tab.observer.disconnect();
+    tab.terminal.dispose();
+  }
   if (id === activeId) {
     activeId = -1;
   }
@@ -657,5 +785,11 @@ export function handleShellExit(id: number): void {
 }
 
 export function focusActiveTab(): void {
-  tabs.get(activeId)?.terminal.focus();
+  const tab = tabs.get(activeId);
+  if (tab?.kind === "terminal") {
+    tab.terminal.focus();
+  }
+  if (tab?.kind === "markdown") {
+    tab.element.focus();
+  }
 }

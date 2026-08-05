@@ -89,6 +89,9 @@ the other end echoes it back.
 | `src/renderer/rename-dialog.ts`| The rename modal                                             |
 | `src/renderer/settings.ts`     | Current settings: value, localStorage persistence, → CSS     |
 | `src/renderer/settings-dialog.ts`| The settings modal (each control issues a Command)         |
+| `src/renderer/markdown.ts`     | GitHub-look Markdown rendering (markdown-it + DOMPurify)     |
+| `src/renderer/markdown-links.ts`| Terminal link provider: Cmd+click a `*.md` path opens it    |
+| `src/main/files.ts`            | `file:read` for the markdown view (resolves via shell cwd)   |
 | `src/renderer/dom.ts`          | `requireElement`: strict, typed lookups of the page's fixed elements |
 | `tsconfig.json`                | Compiler settings; `tsc` mirrors `src/` into `dist/` 1:1     |
 

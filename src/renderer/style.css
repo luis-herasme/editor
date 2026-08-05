@@ -243,6 +243,26 @@ dialog select:focus {
   color: white;
 }
 
+/* ---------- Markdown view ---------- */
+
+/* The element also wears .markdown-body, so github-markdown-css paints
+   its canvas color across the whole pane; the padding formula centers
+   the content at GitHub's reading width */
+.markdown-view {
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  outline: none;
+  padding: 24px max(32px, calc((100% - 880px) / 2));
+}
+
+/* GitHub centers rendered diagrams */
+.markdown-view .mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
 /* ---------- Terminal ---------- */
 
 .terminal-pane {

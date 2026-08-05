@@ -6,6 +6,7 @@
 // are blocked by our CSP, external ones unsupported by Chromium).
 import { z } from "../../node_modules/zod/index.js";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
+import { requireElement } from "./dom.js";
 import type { Theme } from "../theme.js";
 import type { Settings } from "../api.js";
 
@@ -81,5 +82,13 @@ export function applyCssVariables(): void {
     const cssName =
       "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
     document.documentElement.style.setProperty(cssName, String(value));
+  }
+  // github-markdown-css ships separate dark/light files; point the single
+  // link at the matching one. An href swap, not disabled-toggling: a link
+  // enabled while still loading re-enables itself when the load ends.
+  const markdownCss = requireElement("markdown-css", HTMLLinkElement);
+  const variantHref = `../../node_modules/github-markdown-css/github-markdown-${currentTheme().colorScheme}.css`;
+  if (markdownCss.getAttribute("href") !== variantHref) {
+    markdownCss.setAttribute("href", variantHref);
   }
 }

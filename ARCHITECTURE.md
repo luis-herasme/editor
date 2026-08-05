@@ -61,6 +61,7 @@ onCommand(callback)          main → renderer   "execute this Command" (see bel
 emitEvent(event)             renderer → main   "this Event just happened" (see below)
 showTabMenu(id)              renderer → main   "right-click on tab `id`: show its native menu"
 onRenameRequest((id))        main → renderer   "the user picked Rename in tab `id`'s menu"
+readFile({path, baseTabId})  renderer → main   "read this file for the markdown view" (the one request/response pair)
 ```
 
 Rules that keep this boundary healthy:
@@ -134,6 +135,7 @@ src/
     shells.ts          Map<tab id, PTY>: spawn/write/resize/kill + relaying data/exit
     menus.ts           app menu + tab context menu; menu items are Command sources
     bus.ts             dispatch() into the renderer; Event intake (the read model)
+    files.ts           file:read for the markdown view; resolves against a shell's cwd
   renderer/
     index.html         the page: title bar, sidebar, the layout root, the modals
     style.css          the page's stylesheet; theme values arrive as custom properties
@@ -142,6 +144,8 @@ src/
     rename-dialog.ts   the rename modal
     settings.ts        the current settings: value, persistence, hand-off to CSS
     settings-dialog.ts the settings modal; controls are Command sources
+    markdown.ts        GitHub-look rendering (markdown-it + DOMPurify)
+    markdown-links.ts  the terminal link provider: Cmd+click a *.md path
     dom.ts             requireElement: strict lookups of index.html's fixed elements
 ```
 
@@ -367,6 +371,35 @@ change it and update this list.
   files. Costs we accept: one ugly import path, and a dependency whose
   ESM build must stay browser-loadable (zod's is: fully relative,
   extension-qualified imports).
+- **Markdown views: a second tab kind, opened from terminal links.**
+  (Decided 2026-08.) Cmd+clicking a `*.md` path in any terminal opens the
+  file rendered in a new tab: an xterm link provider matches the paths
+  (joining wrapped buffer rows first, since long paths wrap) and issues an
+  `open-markdown` Command, the same door every gesture uses. Rendering is
+  markdown-it (GFM task lists are a small DOM pass of our own; the
+  plugin for them ships no browser build), sanitized by DOMPurify because
+  Markdown may embed raw HTML, and styled by github-markdown-css: GitHub's
+  own extracted stylesheet, its dark or light file swapped by settings.ts
+  to follow the theme. The view element itself wears `.markdown-body`, so
+  GitHub's canvas color fills the whole pane instead of framing a card.
+  The markdown libraries are imported as their self-contained browser ESM
+  bundles, by path like zod, not as classic-script globals; the two
+  bundles without adjacent declaration files borrow their types from the
+  packages' normal entries via an annotated const. As on GitHub, a ```mermaid fence becomes a drawn
+  diagram (the mermaid library, themed to match, its own strict
+  sanitizer on); a fence that doesn't parse stays visible as code. By
+  far our heaviest dependency; if startup ever drags, defer its script
+  until the first diagram. The renderer can't read the disk, so the bridge
+  grew its first request/response pair, `readFile`: main reads the file
+  (capped at 5MB) and resolves a relative path against the clicking tab's
+  shell cwd, asked of the OS at click time (lsof on the PTY's pid), so no
+  shell configuration is needed. `Tab` became a discriminated union
+  (terminal | markdown) sharing one removal path; a markdown tab's ×
+  removes it directly, there being no shell exit to wait for. Costs we
+  accept: the page can now ask main to read any file (fine for a personal
+  tool; revisit before any remote surface exists), the last *shell*
+  exiting still closes the window even if markdown tabs remain, and the
+  wrapped-row index math assumes single-width characters.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)

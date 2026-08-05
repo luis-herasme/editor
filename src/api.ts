@@ -30,7 +30,16 @@ export type Command =
   | { type: "set-tab-title"; id?: number; title: string; transient?: boolean }
   // Change any subset of the settings; omitted fields keep their value.
   // Invalid values are corrected to their defaults, not rejected.
-  | { type: "update-settings"; settings: Partial<Settings> };
+  | { type: "update-settings"; settings: Partial<Settings> }
+  // Open a file rendered as GitHub-flavored Markdown in a new tab
+  // (default: the active group). A relative path resolves against the
+  // shell cwd of `baseTabId` (the terminal the link was clicked in).
+  | {
+      type: "open-markdown";
+      path: string;
+      baseTabId?: number;
+      groupId?: string;
+    };
 
 // Facts, out of the editor. Every event carries the state it produced, so
 // whatever an observer heard last is the whole truth. tab-moved covers
@@ -58,6 +67,7 @@ export interface Settings {
 export interface TabInfo {
   id: number;
   title: string;
+  kind: "terminal" | "markdown";
 }
 
 // One tab strip and the pane below it. Group ids are opaque handles

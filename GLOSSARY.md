@@ -193,6 +193,17 @@ it the bridge for handing a script's values to stylesheets, since CSS has no way
 to read JavaScript on its own. Ours carry the scrollbar colors from theme.ts
 into index.html's styles.
 
+## Link provider
+
+xterm's hook for making arbitrary terminal text clickable. The emulator
+has no idea what a path or URL is; a link provider is asked, per buffer
+line, "any links here?" and answers with character ranges and an activate
+callback. Ours matches `*.md` paths (after joining wrapped rows, since a
+long path spans several buffer rows) and opens the file rendered on
+Cmd+click. The complementary mechanism is OSC 8, an escape sequence a
+program uses to *declare* a hyperlink explicitly; provider-side detection
+needs no cooperation from the program, which is why we started there.
+
 ## Drag region / hiddenInset
 
 How an app paints its own title bar on macOS. Creating the Electron
