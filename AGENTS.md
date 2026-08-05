@@ -23,9 +23,8 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 - No abbreviations or diminutives: `response` not `res`, `request` not `req`, `event` not `e`, `parameters` not `params`.
 - No single-letter variable names anywhere: lambda params (`(message) =>` not `(m) =>`), destructured renames, loop variables, and short object keys (`{ question, answer }` not `{ q, a }`).
-  - Exception: an established repo-wide convention may stay (in the moni monorepo, `f` for react-intl's `formatMessage` is intentional). Don't invent new ones.
-- Encode units in constant names: `_CENTS`, `_MS`, `_SECONDS`, `_BPS`, `_BYTES`.
-- Use full identifier names in path params and schemas (`{rampSessionId}`, never `{id}`).
+- Encode units in constant names: `_MS`, `_SECONDS`, `_BYTES`.
+- Use full identifier names in path params and schemas (`{terminalSessionId}`, never `{id}`).
 
 ### Control flow: explicit over clever
 
@@ -54,7 +53,7 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 ### Types
 
-- Never use type assertions (`as`). Use Zod validation, type narrowing, or a library constructor (e.g. viem `getAddress()`) instead. `as const` is the accepted exception.
+- Never use type assertions (`as`). Use Zod validation, type narrowing, or a validating library constructor instead. `as const` is the accepted exception.
 - Never use the non-null assertion operator (`!`). Use a runtime guard or restructure so the type narrows naturally.
 - Default to Zod for runtime narrowing of `unknown` values; never hand-rolled `typeof x === 'object' && 'field' in x` chains.
 - Functions fetching external data return `unknown`; callers validate with a named Zod schema defined at top level (never inline at the call site) and derive types via `z.infer<>`.
@@ -63,15 +62,15 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
   ```ts
   type DoThingParams = {
-    rampSessionId: string;
-    amount: bigint;
+    terminalSessionId: string;
+    timeoutMs: number;
   };
 
   async function doThing(params: DoThingParams) { ... }
   ```
 
 - Functions with 2+ parameters take a single options object with a named type.
-- Reuse types the library already exports (viem's `Address`) instead of recreating them inline.
+- Reuse types the library already exports instead of recreating them inline.
 - Prefer typed primitives over raw embedded code strings (Lua, hand-written SQL): an embedded string is not statically verified. Only reach for one when no typed primitive can express the requirement, and say so.
 
 ### Abstractions
@@ -100,14 +99,14 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 - Object literals with 2+ fields span multiple lines, one field per line. Single-field objects can stay inline.
 - Export constants as individual flat `export const` values, not bundled into a grouping object. The filename already expresses the grouping.
-- Write static literals directly with a clarifying comment (`1000n // $10`) instead of factory wrappers for values that never change.
+- Write static literals directly with a clarifying comment (`3000 // 3 seconds`) instead of factory wrappers for values that never change.
 
 ### Comments
 
 - Comments are terse one-liners stating only the non-obvious constraint the code can't show. Extended rationale, mechanisms, and debugging history go in the PR description. This covers inline comments, JSDoc, and comments above test cases.
 - No reassurance comments ("X is already validated upstream, so this is safe"). If a reviewer flags a non-issue, push back on the PR; don't appease with a comment.
 - No PRD sections, FR numbers, or ticket IDs in code comments or test descriptions. They rot; describe the behavior instead. Ticket refs in commits and PR descriptions are fine.
-- Don't restate constant values in comments far from the declaration (they drift). Inline `// $10` next to the literal is fine; use semantic labels elsewhere.
+- Don't restate constant values in comments far from the declaration (they drift). Inline `// 3 seconds` next to the literal is fine; use semantic labels elsewhere.
 - When a hardcoded value comes from external research (vendor docs, contracts, regulations), put the source URL in a comment next to the value and in the PR description, and verify the link resolves.
 
 ### Tests
