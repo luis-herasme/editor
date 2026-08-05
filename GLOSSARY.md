@@ -86,9 +86,31 @@ main. They are separate operating-system processes and share no memory.
 ## IPC (inter-process communication)
 
 How the main and renderer processes talk: named messages passed between them
-(`ipcMain` / `ipcRenderer` in Electron). Our whole app is three messages:
-`terminal:input` (keystrokes going to the shell), `terminal:data` (shell output
-coming back), and `terminal:resize` (the window changed size).
+(`ipcMain` / `ipcRenderer` in Electron). Ours carry the per-tab session
+protocol (`terminal:input`, `terminal:data`, `terminal:resize`, ...) and the
+command bus (`command` in, `event` out) — the full list is "The boundary"
+in ARCHITECTURE.md.
+
+## Command / Event
+
+The two halves of the editor's public interface (defined in `api.ts`).
+A **command** is an imperative request flowing *into* the editor — "open a
+tab", "type this text" — named in the imperative mood. An **event** is a
+fact flowing *out* — "tab 3 opened" — named in the past tense, and carrying
+a snapshot of the resulting state. Keeping the two directions as two words
+(borrowed from the CQRS pattern) matters because an external driver, like
+an agent, needs both: send commands, observe events. One word would muddle
+which way the arrow points.
+
+## Menu accelerator
+
+A keyboard shortcut attached to an application-menu item (macOS's native way
+of owning shortcuts). Accelerators fire *before* the focused web page sees
+the key — which cuts both ways: the default menu binds ⌘W to "close window",
+so a page could never intercept it for "close tab"; but a menu we define
+ourselves gets ⌘T/⌘W reliably, even while xterm has keyboard focus. That's
+why our tab shortcuts live in main's menu and arrive in the renderer as
+forwarded events rather than keystrokes.
 
 ## Preload script
 
@@ -136,14 +158,17 @@ type in `src/` (errors stop the build) and **emits** the equivalent plain
 JavaScript into `dist/`, one output file per source file. It's the project's
 entire build system — `npm start` is just `tsc && electron .`.
 
-## Declaration file (.d.ts)
+## Declaration file (.d.ts) / declare global
 
-A TypeScript file containing only types — it compiles to nothing. Used to
-describe things that exist at runtime but aren't defined in your code: our
-`src/bridge.d.ts` declares the shape of `window.terminal` (which preload
-creates at runtime) and of the `Terminal`/`FitAddon` globals (which the
-xterm.js script tags create). It's how the compiler learns about the world
-outside the compiled files.
+A `.d.ts` file contains only types and compiles to nothing — it's how
+libraries ship types for the compiler (xterm's packages in node_modules do
+this). We used to write our own, but chose plain `.ts` modules with
+explicit `import type` instead: in a growing codebase, every name should
+have a greppable import stating where it comes from. The one thing imports
+can't express is a name that genuinely exists on the global scope at
+runtime — `window.terminal` (preload puts it there) and the
+`Terminal`/`FitAddon` globals (xterm's script tags create them). Those are
+declared with `declare global`, and that's the only thing it's used for.
 
 ## Script vs. module
 
@@ -197,6 +222,15 @@ using escape sequences — vim, htop, lazygit. The opposite approach to this
 app: a TUI lives *inside* a terminal emulator and inherits the grid's limits
 (no images, no proportional fonts, no embedded web pages); this app *is* the
 terminal emulator, with a full browser page around the grid.
+
+## ResizeObserver
+
+A browser API that calls you back whenever an element's box changes size —
+for any reason: window resized, `display` toggled, layout shifted. Each
+tab's pane has one, re-fitting its character grid on any change. The
+alternative is tracking every *cause* of a size change by hand (a window
+listener here, a catch-up call there) and hoping future features remember
+to join in — the classic cache-invalidation trap.
 
 ## Race condition
 

@@ -22,10 +22,64 @@
            (like scrollbars) uses its dark variant */
         color-scheme: dark;
       }
-      #terminal {
+      /* Tab bar on top, terminals filling the rest */
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #tabbar {
+        flex: none;
+        display: flex;
+        align-items: stretch;
+        background: var(--tab-bar-background);
+      }
+      #tabs {
+        display: flex;
+      }
+      .tab,
+      #new-tab {
+        font-family: system-ui;
+        color: var(--tab-foreground);
+        background: transparent;
+        border: none;
+      }
+      .tab {
+        font-size: 12px;
+        padding: 8px 10px 8px 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      /* The active tab shares the terminal's background, so it reads as
+         connected to the pane below it */
+      .tab.active {
+        background: var(--background);
+        color: var(--tab-active-foreground);
+      }
+      /* The × inherits its tab's dim color; brighten it on hover */
+      .tab-close:hover {
+        color: var(--tab-active-foreground);
+      }
+      #new-tab {
+        font-size: 15px;
+        padding: 4px 12px;
+      }
+      #terminals {
+        flex: 1;
+        /* A flex child refuses to shrink below its content's height by
+           default; without this, a tall scrollback would push the layout
+           past the window instead of scrolling inside xterm. */
+        min-height: 0;
+      }
+      .terminal-pane {
         height: 100%;
         padding: 4px;
         box-sizing: border-box;
+        /* Hidden, not removed: each tab keeps its live terminal around */
+        display: none;
+      }
+      .terminal-pane.active {
+        display: block;
       }
       /* xterm's scrollback lives in a scrollable div (.xterm-viewport), and
          Chromium gives it a wide default scrollbar. Restyle it into a slim
@@ -49,7 +103,11 @@
     </style>
   </head>
   <body>
-    <div id="terminal"></div>
+    <div id="tabbar">
+      <div id="tabs"></div>
+      <button id="new-tab" title="New Tab (⌘T)">+</button>
+    </div>
+    <div id="terminals"></div>
     <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
     <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
     <!-- type="module" lets renderer.js use import (it imports theme.js).

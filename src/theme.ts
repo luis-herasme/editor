@@ -12,4 +12,9 @@ export const THEME = {
   // Slim translucent scrollbar thumb, like a native macOS overlay scrollbar
   scrollbarThumb: "rgba(255, 255, 255, 0.25)",
   scrollbarThumbHover: "rgba(255, 255, 255, 0.45)",
+  // Tab bar: darker than the terminal, so the active tab — which shares the
+  // terminal's background — reads as connected to it.
+  tabBarBackground: "#161616",
+  tabForeground: "#8a8a8a",
+  tabActiveForeground: "#e6e6e6",
 } as const

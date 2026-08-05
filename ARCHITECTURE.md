@@ -38,7 +38,7 @@ joined by a serial cable. We keep that exact split:
 | 1978                  | This app                              |
 | --------------------- | ------------------------------------- |
 | VT100 (screen + keys) | renderer process running xterm.js     |
-| serial cable          | IPC channel (3 messages)              |
+| serial cable          | IPC channel (the bridge's messages)   |
 | the computer          | main process holding a PTY + zsh      |
 
 Everything in the codebase is on one side of that cable or the other. When a
@@ -51,16 +51,24 @@ The entire contract between the two halves is `window.terminal`, defined in
 `preload.cts`:
 
 ```
-sendInput(data)        renderer → main   "the user typed these bytes"
-resize(cols, rows)     renderer → main   "the screen is now this size"
-onData(callback)       main → renderer   "the shell produced these bytes"
+create(id, cols, rows)   renderer → main   "start a shell for tab `id` at this size"
+sendInput(id, data)      renderer → main   "the user typed these bytes in tab `id`"
+resize(id, cols, rows)   renderer → main   "tab `id` is now this size"
+close(id)                renderer → main   "kill tab `id`'s shell"
+onData((id, data))       main → renderer   "tab `id`'s shell produced these bytes"
+onExit((id))             main → renderer   "tab `id`'s shell has exited"
+onCommand(callback)      main → renderer   "execute this Command" (see below)
+emitEvent(event)         renderer → main   "this Event just happened" (see below)
 ```
 
 Rules that keep this boundary healthy:
 
-1. **Only bytes and sizes cross it.** No commands, no file paths, no
-   structured objects. The renderer never knows what shell is running; the
-   main process never knows how the screen is drawn.
+1. **The session protocol carries only bytes, sizes and session ids.** No
+   file paths, no structured objects. The renderer never knows what shell
+   is running; the main process never knows how the screen is drawn. The
+   one deliberate exception is the command bus (next section): a single
+   pair of channels carrying typed `Command`/`EditorEvent` objects, whose
+   shapes live in `api.ts` and are compile-checked on both sides.
 2. **The renderer stays a dumb screen.** Anything that touches the OS
    (processes, files, clipboard writes are the one pragmatic exception)
    belongs in main.
@@ -69,7 +77,43 @@ Rules that keep this boundary healthy:
    exposing Node.js to the page.
 
 This is also the security model (see "Preload script" in the glossary): the
-page can only ever do what these three functions allow.
+page can only ever do what these functions allow.
+
+## The command bus — the public interface
+
+The most important seam in the project. Everything the editor can do is
+expressible as a **Command** (an imperative request: "open a tab", "type
+this text"), and everything that happens is announced as an **Event** (a
+fact: "tab 3 opened", with a snapshot of the resulting state). The two
+unions in `api.ts` *are* the editor's public API — that file is the one
+to read first.
+
+```
+        dispatch(command)                executeCommand(command)
+  main ────────────────────► renderer ──── one switch, the only
+   ▲                            │           place state changes
+   │  sources: app menu today,  │
+   │  a local server tomorrow   ▼
+   └──────────────────────── emitEvent(event with state snapshot)
+```
+
+The rule that keeps the API honest — **every UI affordance goes through a
+command**. The × button, the + button, clicking a tab, ⌘T: none of them
+call editor functions directly; they all issue the same Commands an
+external caller would. The UI is just the first API client, so the API
+can never lag behind the UI.
+
+Two consequences worth naming:
+
+- **Events carry a state snapshot** (`{tabs, activeId}`), so an observer
+  never needs a query protocol: whatever arrives last is the truth. Main
+  keeps the latest snapshot as the read model a future server will answer
+  from.
+- **The console is the API today.** `window.editor.command({type: "new-tab"})`
+  in devtools (⌥⌘I) drives the real bus. The eventual goal — a local
+  server so an LLM agent can fully drive the editor — is then a main-only
+  change: a second caller of `dispatch`, plus streaming Events and
+  terminal output (which already flows through main) back out.
 
 ## Decisions so far
 
@@ -85,21 +129,53 @@ change it and update this list.
   `tsc` type-checks all of `src/` and emits plain JS into `dist/`. Cost we
   accept: a compile step inside `npm start`. The no-bundler rule stands —
   `dist/` files map 1:1 to `src/` files, nothing is fused or minified.
-- **The IPC contract is a type.** `src/bridge.d.ts` declares `TerminalBridge`;
+- **The IPC contract is a type.** `src/bridge.ts` declares `TerminalBridge`;
   preload implements it and the renderer consumes it, so the two sides of the
   boundary cannot silently drift apart — drift is now a compile error.
-- **One window, one shell, no session abstraction.** Tabs would want a
-  `Map<sessionId, pty>` and an id on every message — we deliberately did not
-  build that. It is a rewrite of ~15 lines when tabs arrive; carrying the
-  abstraction before then costs more in reading than it saves in typing.
-- **Shell lifecycle is symmetric.** Closing the window kills the shell;
-  the shell exiting closes the window. No orphan processes, no zombie windows.
-- **The shell spawns only after the page has loaded.** The two halves boot
-  in parallel, and shell output sent to a page that isn't listening yet is
-  silently dropped — a race we'd usually win (zsh reads dotfiles slower than
-  Chromium loads a page) but could lose. Main waits for `loadFile` to
-  resolve, tracking the renderer's reported grid size in the meantime, so
-  the shell is born already listening *and* at the right size.
+- **Types are modules, not declaration files.** (Replaced the earlier
+  ambient-`.d.ts` pattern.) This will eventually be a large codebase, and at
+  scale every name should have a greppable `import type` stating where it
+  comes from — ambient types that "appear from nowhere" don't pay their way
+  once "where is this defined?" becomes a real question. `api.ts` and
+  `bridge.ts` are ordinary modules exporting types; `declare global` is
+  reserved for names that genuinely exist on the global scope at runtime
+  (`window.terminal`, `window.editor`, xterm's classic-script globals) and
+  lives next to what creates or consumes them. Cost we accept: tsc emits an
+  empty `dist/api.js` and `dist/bridge.js` that nothing ever loads.
+- **Tabs: a session id on every message.** (Replaced "one window, one shell,
+  no session abstraction" — the predicted ~15-line rewrite arrived when tabs
+  did.) One tab = one xterm.js instance in the renderer = one PTY in main's
+  `Map<id, pty>`. The *renderer* assigns the ids (a counter): it knows a tab
+  exists before main does, so ids flow in the same direction as creation and
+  no reply message is needed. The renderer owns everything visual (tab bar,
+  which tab is showing); main knows nothing but ids.
+- **Shell lifecycle is symmetric, per session.** Closing a tab kills its
+  shell; a shell exiting (`exit`, ⌘W) removes its tab — one removal path,
+  always triggered by `onExit`. The *last* shell exiting closes the window,
+  and closing the window kills every remaining shell.
+- **The renderer requests the first shell — the old startup race is gone.**
+  Main used to spawn the shell after `loadFile` resolved, so output couldn't
+  arrive before the page listened. With tabs, creation starts *in* the page
+  (`create` is sent from a running renderer), so a shell can't exist before
+  the page is listening — the race is unrepresentable rather than handled.
+- **⌘T/⌘W live in the application menu.** Menu accelerators are the
+  macOS-native home for shortcuts, and the default menu already binds ⌘W to
+  "close window" — a page-level key handler would never see it. So main owns
+  a small menu (File > New Tab / Close Tab) whose clicks dispatch Commands
+  onto the bus; the renderer decides what a "tab" even is.
+- **Commands in, Events out — and the UI is just the first client.**
+  (This is the command-bus decision; the design lives in its own section
+  above.) We chose the CQRS naming — *command* = imperative request in,
+  *event* = fact out — because an external driver needs both directions and
+  one word muddles the arrow. The consumer (`executeCommand`) lives in the
+  renderer because tab state lives there; the intake (`dispatch`) lives in
+  main because the future server must live where Node is. Every UI control
+  issues Commands rather than calling functions, so the API cannot lag
+  behind the UI; every state change emits an Event carrying a full
+  snapshot, so observers need no query protocol. Costs we accept: one
+  structured channel pierces the bytes-and-ids rule (typed and
+  compile-checked in `api.ts`), and UI clicks take one extra hop through
+  the switch.
 - **Login shell (`zsh -l`), spawned in `$HOME`.** The app should feel
   identical to Terminal.app on first launch — same prompt, same PATH.
 - **xterm.js and node-pty do the hard parts.** Escape-sequence parsing and
@@ -157,8 +233,12 @@ A quick map so features land on the right side of the cable:
   search addon), clickable links, scrollback size, ⌘K clear.
 - **Main-only** (no protocol change): default working directory, shell
   choice, window size persistence.
-- **Protocol changes** (the expensive kind — design first): tabs/splits
-  (session ids on every message), config file (a `config:get` message or
+- **New capabilities** now usually mean new Commands/Events in `api.ts` —
+  the bus is the protocol growing point. The public API server (feeding
+  `dispatch` from HTTP/WebSocket, streaming Events back) is a main-only
+  change.
+- **Protocol changes** (the expensive kind — design first): splits (likely
+  reuses the tab session machinery), config file (a `config:get` message or
   similar), shell integration/OSC hooks (new main → renderer events),
   VS Code view (a message telling the renderer what port
   openvscode-server landed on).
