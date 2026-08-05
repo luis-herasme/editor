@@ -31,7 +31,9 @@ export interface Theme {
   titleBarBackground: string;
   tabForeground: string;
   tabActiveForeground: string;
-  // Hairline separators: between tabs in the strip, and between split panes
+  // Hairline separators: between tabs in the strip, and between split
+  // panes. Always opaque: a translucent line renders differently on
+  // every surface and double-darkens where two of them overlap.
   separator: string;
   // Primary-action color, e.g. the modals' default buttons
   accent: string;
@@ -50,7 +52,7 @@ export const THEMES = {
     titleBarBackground: "#161616",
     tabForeground: "#8a8a8a",
     tabActiveForeground: "#e6e6e6",
-    separator: "rgba(255, 255, 255, 0.12)",
+    separator: "#323232",
     accent: "#007aff", // macOS system blue
   },
   light: {
@@ -65,7 +67,7 @@ export const THEMES = {
     titleBarBackground: "#ececec",
     tabForeground: "#767676",
     tabActiveForeground: "#1a1a1a",
-    separator: "rgba(0, 0, 0, 0.12)",
+    separator: "#d0d0d0",
     accent: "#007aff",
   },
   // The classic precision-picked palette (https://ethanschoonover.com/solarized)
@@ -81,7 +83,7 @@ export const THEMES = {
     titleBarBackground: "#00212b",
     tabForeground: "#657b83",
     tabActiveForeground: "#93a1a1",
-    separator: "rgba(147, 161, 161, 0.15)",
+    separator: "#073642", // solarized base02, its own "background highlight" tone
     accent: "#268bd2",
   },
 } satisfies Record<string, Theme>;
