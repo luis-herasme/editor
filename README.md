@@ -17,8 +17,8 @@ npm start         # type-checks + compiles src/ to dist/, then launches
 ## How it works
 
 The app is two processes. Each tab pairs one xterm.js instance (renderer)
-with one shell in a PTY (main); every IPC message carries the tab's session
-id so the two sides stay paired:
+with one shell in a PTY (main); every IPC message carries the tab's id so
+the two sides stay paired:
 
 ```mermaid
 flowchart LR
@@ -32,37 +32,37 @@ flowchart LR
     end
     zsh["zsh (one per tab)"]
 
-    xterm -- "terminal:create (id, cols, rows)" --> ptyend
-    xterm -- "terminal:input (id, data)" --> ptyend
-    xterm -- "terminal:resize (id, cols, rows)" --> ptyend
-    xterm -- "terminal:close (id)" --> ptyend
-    ptyend -- "terminal:data (id, data)" --> xterm
-    ptyend -- "terminal:exited (id)" --> xterm
+    xterm -- "spawnShell(id, cols, rows)" --> ptyend
+    xterm -- "writeToShell(id, data)" --> ptyend
+    xterm -- "resizeShell(id, cols, rows)" --> ptyend
+    xterm -- "killShell(id)" --> ptyend
+    ptyend -- "onShellData(id, data)" --> xterm
+    ptyend -- "onShellExit(id)" --> xterm
     ptyend <--> zsh
 ```
 
-All arrows between the processes pass through `window.terminal`, the bridge
-that `preload.cts` exposes to the page. (Two further main → renderer events,
-`tab:new` and `tab:close`, forward the ⌘T/⌘W menu items — see "Menu
-accelerator" in the glossary.)
+All arrows between the processes pass through `window.bridge`, which
+`src/ipc/preload.cts` exposes to the page. (The bridge also carries the
+command bus and the tab context menu — the full contract is
+`src/ipc/bridge.ts`.)
 
 Life of a keystroke — you press `l`:
 
 ```mermaid
 sequenceDiagram
     participant You
-    participant X as xterm.js<br/>(renderer.ts)
-    participant M as main process<br/>(main.ts)
+    participant X as xterm.js<br/>(renderer/tabs.ts)
+    participant M as main process<br/>(main/shells.ts)
     participant P as PTY
     participant Z as zsh
 
     You->>X: press "l"
-    X->>M: terminal:input (id, "l")
+    X->>M: writeToShell(id, "l")
     M->>P: shell.write("l")
     P->>Z: "l"
     Z-->>P: echoes "l" back (maybe with color codes)
     P-->>M: shell.onData fires
-    M-->>X: terminal:data (id, ...)
+    M-->>X: onShellData(id, ...)
     X->>X: parse escape sequences, draw "l"
 ```
 
@@ -72,16 +72,21 @@ the other end echoes it back.
 
 ## Files
 
-| File              | Role                                                              |
-| ----------------- | ----------------------------------------------------------------- |
-| `src/api.ts`      | **The public interface**: every Command in, every Event out       |
-| `src/main.ts`     | Main process: opens the window, spawns zsh in a PTY, relays bytes |
-| `src/preload.cts` | Security bridge: exposes `window.terminal`, nothing else          |
-| `src/renderer.ts` | Owns the tabs; wires each xterm.js instance to `window.terminal`  |
-| `src/theme.ts`    | All visual settings (colors, font) in one importable place        |
-| `src/bridge.ts`   | The IPC contract as a type, shared by preload and renderer        |
-| `src/index.html`  | The page: one `<div>`, xterm's CSS/JS via script tags             |
-| `tsconfig.json`   | Compiler settings; `tsc` emits `src/*.ts` → `dist/*.js` 1:1       |
+| File                           | Role                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| `src/api.ts`                   | **The public interface**: every Command in, every Event out  |
+| `src/theme.ts`                 | All visual settings (colors, font) in one importable place   |
+| `src/ipc/bridge.ts`            | The IPC contract as a type (`window.bridge`)                 |
+| `src/ipc/preload.cts`          | Security bridge: implements `window.bridge`, nothing else    |
+| `src/main/index.ts`            | Main boot: the window and the app lifecycle                  |
+| `src/main/shells.ts`           | One PTY per tab: spawn/write/resize/kill, relays data/exit   |
+| `src/main/menus.ts`            | App menu + tab context menu (menu items issue Commands)      |
+| `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
+| `src/renderer/index.html`      | The page: tab bar, panes, the rename dialog                  |
+| `src/renderer/index.ts`        | Renderer boot: theme → CSS, cable wiring, first tab          |
+| `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
+| `src/renderer/rename-dialog.ts`| The rename modal                                             |
+| `tsconfig.json`                | Compiler settings; `tsc` mirrors `src/` into `dist/` 1:1     |
 
 There is deliberately no bundler, no framework, and no abstraction for
 features we don't have yet. Features get added when we need them.

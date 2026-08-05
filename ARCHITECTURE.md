@@ -47,23 +47,25 @@ does this belong on, and does the cable need to change?**
 
 ## The boundary
 
-The entire contract between the two halves is `window.terminal`, defined in
-`preload.cts`:
+The entire contract between the two halves is `window.bridge`, typed in
+`ipc/bridge.ts` and implemented in `ipc/preload.cts`:
 
 ```
-create(id, cols, rows)   renderer → main   "start a shell for tab `id` at this size"
-sendInput(id, data)      renderer → main   "the user typed these bytes in tab `id`"
-resize(id, cols, rows)   renderer → main   "tab `id` is now this size"
-close(id)                renderer → main   "kill tab `id`'s shell"
-onData((id, data))       main → renderer   "tab `id`'s shell produced these bytes"
-onExit((id))             main → renderer   "tab `id`'s shell has exited"
-onCommand(callback)      main → renderer   "execute this Command" (see below)
-emitEvent(event)         renderer → main   "this Event just happened" (see below)
+spawnShell(id, cols, rows)   renderer → main   "start a shell for tab `id` at this size"
+writeToShell(id, data)       renderer → main   "the user typed these bytes in tab `id`"
+resizeShell(id, cols, rows)  renderer → main   "tab `id` is now this size"
+killShell(id)                renderer → main   "kill tab `id`'s shell"
+onShellData((id, data))      main → renderer   "tab `id`'s shell produced these bytes"
+onShellExit((id))            main → renderer   "tab `id`'s shell has exited"
+onCommand(callback)          main → renderer   "execute this Command" (see below)
+emitEvent(event)             renderer → main   "this Event just happened" (see below)
+showTabMenu(id)              renderer → main   "right-click on tab `id` — show its native menu"
+onRenameRequest((id))        main → renderer   "the user picked Rename in tab `id`'s menu"
 ```
 
 Rules that keep this boundary healthy:
 
-1. **The session protocol carries only bytes, sizes and session ids.** No
+1. **The shell protocol carries only bytes, sizes and tab ids.** No
    file paths, no structured objects. The renderer never knows what shell
    is running; the main process never knows how the screen is drawn. The
    one deliberate exception is the command bus (next section): a single
@@ -115,6 +117,34 @@ Two consequences worth naming:
   change: a second caller of `dispatch`, plus streaming Events and
   terminal output (which already flows through main) back out.
 
+## Map of the code
+
+Directories mirror this document: two sides, the cable between them, and
+the public interface at the top.
+
+```
+src/
+  api.ts             the public interface: Command / EditorEvent / EditorState
+  theme.ts           every visual setting, imported by both sides
+  ipc/               the cable
+    bridge.ts          the contract type (window.bridge)
+    preload.cts        its implementation — the one CommonJS file
+  main/
+    index.ts           boot: the window and the app lifecycle
+    shells.ts          Map<tab id, PTY>: spawn/write/resize/kill + relaying data/exit
+    menus.ts           app menu + tab context menu — menu items are Command sources
+    bus.ts             dispatch() into the renderer; Event intake (the read model)
+  renderer/
+    index.html         the page: tab bar, panes, the rename dialog
+    index.ts           boot: theme → CSS, cable wiring, the first tab
+    tabs.ts            Tab store + operations + executeCommand (the consumer)
+    rename-dialog.ts   the rename modal
+```
+
+A reader who knows the architecture can predict where anything lives; a
+file that stops fitting its one-line description above is a file that
+wants splitting.
+
 ## Decisions so far
 
 Each entry: what we chose, and why. If a decision stops making sense, we
@@ -129,7 +159,7 @@ change it and update this list.
   `tsc` type-checks all of `src/` and emits plain JS into `dist/`. Cost we
   accept: a compile step inside `npm start`. The no-bundler rule stands —
   `dist/` files map 1:1 to `src/` files, nothing is fused or minified.
-- **The IPC contract is a type.** `src/bridge.ts` declares `TerminalBridge`;
+- **The IPC contract is a type.** `src/ipc/bridge.ts` declares `Bridge`;
   preload implements it and the renderer consumes it, so the two sides of the
   boundary cannot silently drift apart — drift is now a compile error.
 - **Types are modules, not declaration files.** (Replaced the earlier
@@ -139,10 +169,10 @@ change it and update this list.
   once "where is this defined?" becomes a real question. `api.ts` and
   `bridge.ts` are ordinary modules exporting types; `declare global` is
   reserved for names that genuinely exist on the global scope at runtime
-  (`window.terminal`, `window.editor`, xterm's classic-script globals) and
+  (`window.bridge`, `window.editor`, xterm's classic-script globals) and
   lives next to what creates or consumes them. Cost we accept: tsc emits an
-  empty `dist/api.js` and `dist/bridge.js` that nothing ever loads.
-- **Tabs: a session id on every message.** (Replaced "one window, one shell,
+  empty `dist/api.js` and `dist/ipc/bridge.js` that nothing ever loads.
+- **Tabs: a tab id on every message.** (Replaced "one window, one shell,
   no session abstraction" — the predicted ~15-line rewrite arrived when tabs
   did.) One tab = one xterm.js instance in the renderer = one PTY in main's
   `Map<id, pty>`. The *renderer* assigns the ids (a counter): it knows a tab
@@ -185,9 +215,9 @@ change it and update this list.
 
 - **Visual settings live in `src/theme.ts`, a plain-script global.** The
   background color had quietly spread to three places in three languages —
-  the window (`main.ts`), the page (`index.html` CSS), and xterm's theme
-  (`renderer.ts`) — that all had to agree by hand. Now `THEME` is defined
-  once: main.ts and renderer.ts import it like any other value; CSS gets its
+  the window (main), the page (CSS), and xterm's theme (renderer) — that
+  all had to agree by hand. Now `THEME` is defined
+  once: both sides import it like any other value; CSS gets its
   colors (page background, scrollbar) pushed in as custom properties, since
   CSS can't read JavaScript. A failed idea worth remembering: we first left
   the page background off entirely, expecting the window's `backgroundColor`
@@ -202,7 +232,7 @@ change it and update this list.
   plain-script global for the page plus a `module.exports` guard for
   `require()`. That wart is the smell of a missing module system, and the
   platform ships one: `"type": "module"` in package.json makes Electron run
-  our output as ES modules, and the browser loads renderer.js with
+  our output as ES modules, and the browser loads the renderer with
   `<script type="module">` — still no bundler. The one exception is
   preload: Electron's sandbox requires it to be CommonJS, so it is named
   `preload.cts` — the extension tells tsc to emit that single file as
@@ -220,7 +250,35 @@ change it and update this list.
   Command like any other client, so external callers can rename tabs the
   same way the shell does, and every rename emits a `tab-retitled` Event.
   A tab whose title is `""` (none set yet, or cleared) falls back to a
-  positional "Untitled-n" label, following VS Code's convention.
+  plain "Untitled" label — a title is display text, not an identifier, so
+  it doesn't need to be unique and gets no number.
+- **Directories mirror the architecture; names say what things are.**
+  (Replaced the original flat `src/` with two catch-all files.) The layout
+  in "Map of the code" exists because the last several features all landed
+  in the same two files — growth was making them junk drawers. Two naming
+  rules came with the split: a name must describe the thing as it is *now*
+  (`window.terminal` became `window.bridge` when it outgrew terminals;
+  `bridge.close(id)` became `killShell(id)` because it says side, object
+  and consequence), and concepts that aren't distinct don't get distinct
+  names (a "session id" was always just the tab's id, so the extra term is
+  gone). Cost we accept: more, smaller files, and cross-file navigation
+  where one scroll used to do.
+- **Explicit renames pin the title; the shell's are transient.** Two
+  writers race for the same label: the human (double-click the tab, or any
+  API caller) and the shell, which retitles on every prompt. Without a
+  rule, a manual rename survives only until the next Enter. So the
+  `set-tab-title` Command carries `transient: true` when it originates
+  from the shell's OSC stream, and a tab that has been explicitly renamed
+  ignores transient updates. Renaming to `""` unpins — the shell's titles
+  flow again. The rename affordance: right-click a tab → a real native
+  context menu (`Menu.popup`, which only main can create) → "Rename Tab…"
+  opens a modal. The modal is an in-window `<dialog>` (`showModal()` gives
+  backdrop, focus trap and Escape-cancels from the browser engine) because
+  Electron has no native text-input dialog — an in-window modal is the
+  standard Electron pattern; VS Code's input boxes work the same way.
+  Double-click a tab is the shortcut to the same modal. Either way the
+  rename commits by issuing the same `set-tab-title` Command any client
+  would.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)

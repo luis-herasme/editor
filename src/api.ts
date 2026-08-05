@@ -22,7 +22,10 @@ export type Command =
   | { type: "close-tab"; id?: number }
   | { type: "activate-tab"; id: number }
   | { type: "write"; id?: number; text: string } // type into a terminal
-  | { type: "set-tab-title"; id?: number; title: string } // "" reverts to "Untitled-n"
+  // Rename a tab. An explicit rename pins the title: later `transient`
+  // renames (the shell's automatic OSC titles) are ignored for that tab.
+  // An explicit `title: ""` reverts to "Untitled" and unpins.
+  | { type: "set-tab-title"; id?: number; title: string; transient?: boolean }
 
 // Facts, out of the editor. Every event carries the state it produced,
 // so whatever an observer heard last is the whole truth.
@@ -33,6 +36,6 @@ export type EditorEvent =
   | { type: "tab-retitled"; id: number; state: EditorState }
 
 export interface EditorState {
-  tabs: { id: number; label: string }[]
+  tabs: { id: number; title: string }[]
   activeId: number
 }

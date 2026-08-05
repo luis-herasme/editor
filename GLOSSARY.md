@@ -86,8 +86,8 @@ main. They are separate operating-system processes and share no memory.
 ## IPC (inter-process communication)
 
 How the main and renderer processes talk: named messages passed between them
-(`ipcMain` / `ipcRenderer` in Electron). Ours carry the per-tab session
-protocol (`terminal:input`, `terminal:data`, `terminal:resize`, ...) and the
+(`ipcMain` / `ipcRenderer` in Electron). Ours carry the per-tab shell
+protocol (`shell:spawn`, `shell:write`, `shell:data`, ...) and the
 command bus (`command` in, `event` out) — the full list is "The boundary"
 in ARCHITECTURE.md.
 
@@ -116,7 +116,7 @@ forwarded events rather than keystrokes.
 
 A small script that runs inside the renderer *before* the page loads, with
 access to both worlds. It exposes a hand-picked API to the page (our
-`window.terminal` with exactly three functions) so the sandboxed page never
+`window.bridge`) so the sandboxed page never
 gets direct access to Node.js. This pattern is called **context isolation**
 and is Electron's security model: the page can only do what the preload
 explicitly permits.
@@ -166,7 +166,7 @@ this). We used to write our own, but chose plain `.ts` modules with
 explicit `import type` instead: in a growing codebase, every name should
 have a greppable import stating where it comes from. The one thing imports
 can't express is a name that genuinely exists on the global scope at
-runtime — `window.terminal` (preload puts it there) and the
+runtime — `window.bridge` (preload puts it there) and the
 `Terminal`/`FitAddon` globals (xterm's script tags create them). Those are
 declared with `declare global`, and that's the only thing it's used for.
 
@@ -177,7 +177,7 @@ get in and out of it. A **module** has private scope: nothing leaks out, and
 others reach its values with `import`. A **classic script** (loaded with a
 plain `<script>` tag) is the older flavor: its top-level declarations land in
 a scope shared by every other script on the page — that's why xterm's script
-tag makes `Terminal` just *appear* as a global in renderer.ts. Modules
+tag makes `Terminal` just *appear* as a global in the renderer. Modules
 themselves come in two dialects: **ES modules** (`import`/`export`, the
 standard, what this project uses everywhere) and **CommonJS**
 (`require()`/`module.exports`, Node's older invention). Our one CommonJS
@@ -222,6 +222,17 @@ using escape sequences — vim, htop, lazygit. The opposite approach to this
 app: a TUI lives *inside* a terminal emulator and inherits the grid's limits
 (no images, no proportional fonts, no embedded web pages); this app *is* the
 terminal emulator, with a full browser page around the grid.
+
+## `<dialog>` element / showModal()
+
+The web platform's built-in modal. Calling `showModal()` on a `<dialog>`
+gets you, from the browser engine itself: a dimmable backdrop, a focus trap
+(Tab can't wander out), Escape-to-cancel, and `method="dialog"` forms whose
+submit closes the dialog carrying a return value. Before it existed, every
+app hand-rolled these behaviors (and usually got focus trapping wrong). We
+use it for the rename modal — Electron has no *native* text-input dialog,
+so an in-window modal is the standard Electron pattern (VS Code's input
+boxes are the same idea).
 
 ## ResizeObserver
 

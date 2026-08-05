@@ -7,13 +7,13 @@
       content="default-src 'self'; style-src 'self' 'unsafe-inline'"
     />
     <title>Terminal</title>
-    <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
+    <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css" />
     <style>
       html,
       body {
         height: 100%;
         margin: 0;
-        /* From theme.ts, handed over by renderer.ts (CSS can't import).
+        /* From theme.ts, handed over by renderer/index.ts (CSS can't import).
            The page must paint this itself: Chromium puts its own canvas
            behind every page, so the window's backgroundColor does NOT show
            through a background-less page. */
@@ -27,7 +27,7 @@
         display: flex;
         flex-direction: column;
       }
-      #tabbar {
+      #tab-bar {
         flex: none;
         display: flex;
         align-items: stretch;
@@ -58,7 +58,7 @@
       }
       /* Shell-set titles can be long paths; cut them off with an ellipsis
          instead of letting one tab swallow the bar */
-      .tab-label {
+      .tab-title {
         max-width: 160px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -71,6 +71,56 @@
       #new-tab {
         font-size: 15px;
         padding: 4px 12px;
+      }
+      /* The rename modal, styled to sit quietly on macOS */
+      dialog {
+        background: var(--tab-bar-background);
+        color: var(--tab-active-foreground);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 16px;
+        width: 260px;
+        font-family: system-ui;
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+      dialog h2 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      dialog input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 5px 8px;
+        font: 13px system-ui;
+        color: inherit;
+        background: var(--background);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 5px;
+        outline: none;
+      }
+      dialog input:focus {
+        border-color: var(--accent);
+      }
+      .dialog-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .dialog-buttons button {
+        font: 12px system-ui;
+        color: inherit;
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        border-radius: 5px;
+        padding: 5px 12px;
+      }
+      .dialog-buttons button.default {
+        background: var(--accent);
+        color: white;
       }
       #terminals {
         flex: 1;
@@ -98,7 +148,7 @@
       .xterm-viewport::-webkit-scrollbar-track {
         background: transparent;
       }
-      /* The colors are custom properties set by renderer.ts from theme.ts —
+      /* The colors are custom properties set by renderer/index.ts from theme.ts —
          CSS has no way to read a script's values, so the script pushes them
          in. */
       .xterm-viewport::-webkit-scrollbar-thumb {
@@ -111,15 +161,30 @@
     </style>
   </head>
   <body>
-    <div id="tabbar">
+    <!-- The rename modal. <dialog> + showModal() gives real modality —
+         backdrop, focus trap, Escape cancels — from the browser engine.
+         (Electron has no native text-input dialog, so an in-window modal
+         is the standard pattern; VS Code does the same.) -->
+    <dialog id="rename-dialog">
+      <form method="dialog">
+        <h2>Rename Tab</h2>
+        <input id="rename-input" type="text" spellcheck="false" />
+        <div class="dialog-buttons">
+          <!-- Cancel is type=button so Enter always means Rename -->
+          <button type="button" id="rename-cancel">Cancel</button>
+          <button value="rename" class="default">Rename</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="tab-bar">
       <div id="tabs"></div>
       <button id="new-tab" title="New Tab (⌘T)">+</button>
     </div>
     <div id="terminals"></div>
-    <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
-    <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+    <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
     <!-- type="module" lets renderer.js use import (it imports theme.js).
          The xterm tags above stay classic scripts providing globals. -->
-    <script type="module" src="../dist/renderer.js"></script>
+    <script type="module" src="../../dist/renderer/index.js"></script>
   </body>
 </html>
