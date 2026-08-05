@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -7,8 +7,12 @@
       content="default-src 'self'; style-src 'self' 'unsafe-inline'"
     />
     <title>Terminal</title>
-    <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css" />
-    <link rel="stylesheet" href="../../node_modules/dockview/dist/styles/dockview.css" />
+    <link
+      rel="stylesheet"
+      href="../../node_modules/@xterm/xterm/css/xterm.css"
+    />
+    <!-- No dockview.css link: the dockview.js bundle injects its own copy
+         of that stylesheet at runtime -->
     <style>
       html,
       body {
@@ -37,29 +41,65 @@
         min-height: 0;
       }
       /* Recolor the stock dark theme from theme.ts's custom properties.
-         This stylesheet loads after dockview.css, so at equal specificity
-         these declarations win. */
-      .dockview-theme-dark {
+         Dockview injects its stylesheet at runtime, after this one, so
+         source order can't win here; the two-class selector outranks the
+         theme's single-class rules instead. */
+      .dv-shell.dockview-theme-dark {
         --dv-group-view-background-color: var(--background);
-        --dv-tabs-and-actions-container-background-color: var(--tab-bar-background);
+        --dv-tabs-and-actions-container-background-color: var(
+          --tab-bar-background
+        );
         --dv-activegroup-visiblepanel-tab-background-color: var(--background);
         --dv-activegroup-visiblepanel-tab-color: var(--tab-active-foreground);
-        --dv-activegroup-hiddenpanel-tab-background-color: var(--tab-bar-background);
+        --dv-activegroup-hiddenpanel-tab-background-color: var(
+          --tab-bar-background
+        );
         --dv-activegroup-hiddenpanel-tab-color: var(--tab-foreground);
         --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
         --dv-inactivegroup-visiblepanel-tab-color: var(--tab-active-foreground);
-        --dv-inactivegroup-hiddenpanel-tab-background-color: var(--tab-bar-background);
+        --dv-inactivegroup-hiddenpanel-tab-background-color: var(
+          --tab-bar-background
+        );
         --dv-inactivegroup-hiddenpanel-tab-color: var(--tab-foreground);
         --dv-tabs-and-actions-container-font-size: 12px;
-        --dv-separator-border: transparent;
+        --dv-separator-border: var(--separator);
+        /* Between-tab lines come from the tab borders below instead */
         --dv-tab-divider-color: transparent;
         --dv-drag-over-background-color: rgba(255, 255, 255, 0.1);
       }
-      /* Our custom tab content, rendered inside Dockview's .dv-tab */
+      /* Tab borders, VS Code style: each tab closes with a hairline, the
+         strip is underlined against the terminal view below, and the
+         active tab wears the accent on top. The transparent top border on
+         every tab keeps heights equal. */
+      .dv-tab {
+        position: relative;
+        border-right: 1px solid var(--separator);
+        border-top: 1px solid var(--separator);
+      }
+      .dv-tab.dv-active-tab {
+        border-top-color: var(--accent);
+      }
+      .dv-tabs-and-actions-container {
+        border-bottom: 1px solid var(--separator);
+      }
+      /* The active tab shares its pane's background; cover the strip's
+         underline where it sits so the two still read as one surface */
+      .dv-tab.dv-active-tab::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 1px;
+        background: var(--background);
+      }
+      /* Our custom tab content, rendered inside Dockview's .dv-tab. Fill
+         the tab's full height so the title and × center vertically. */
       .tab {
         display: flex;
         align-items: center;
         gap: 6px;
+        height: 100%;
         font-family: system-ui;
       }
       /* Shell-set titles can be long paths; cut them off with an ellipsis

@@ -226,6 +226,22 @@ layoutElement.addEventListener("dblclick", (event) => {
   }
 });
 
+// The focus safety net. Keyboard focus belongs in the active terminal;
+// clicking the chrome (tabs, strip, + button) or racing fast tab switches
+// can drop it onto the page body, and shells react to their terminal
+// losing focus (some prompts re-emit the window title in a blurred state,
+// blanking the tab). Whenever focus drains to the body, hand it back.
+// preventDefault on tab mousedown would also keep focus, but it stops
+// Chromium from ever starting a tab drag, so healing beats preventing.
+// Keyboard focus belongs in the active terminal. Dockview's tabs are
+// focusable, so any click on the chrome moves focus out of xterm, and
+// shells react to the blur (some blank the window title). Once the click
+// settles, hand focus back. The rename dialog is modal, so it cannot be
+// robbed by this.
+layoutElement.addEventListener("mousedown", () => {
+  setTimeout(focusActiveTab, 0);
+});
+
 export function getTabTitle(id: number): string | undefined {
   const tab = tabs.get(id);
   if (!tab) {
@@ -595,13 +611,16 @@ export function executeCommand(command: Command): void {
       }
       // A pinned title (explicit rename) beats transient ones (the shell's
       // automatic OSC titles). Explicitly renaming to "" unpins.
+      // Whitespace-only titles count as empty: rendered as-is they would
+      // be an invisible label.
+      const trimmedTitle = command.title.trim();
       if (command.transient && tab.titlePinned) {
         return;
       }
       if (!command.transient) {
-        tab.titlePinned = command.title !== "";
+        tab.titlePinned = trimmedTitle !== "";
       }
-      let title = command.title;
+      let title = trimmedTitle;
       if (title === "") {
         title = "Untitled";
       }

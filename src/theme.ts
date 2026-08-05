@@ -17,6 +17,8 @@ export const THEME = {
   tabBarBackground: "#161616",
   tabForeground: "#8a8a8a",
   tabActiveForeground: "#e6e6e6",
+  // Hairline separators: between tabs in the strip, and between split panes
+  separator: "rgba(255, 255, 255, 0.12)",
   // Primary-action color (macOS system blue), e.g. the modal's Rename button
   accent: "#007aff",
 } as const;
