@@ -8,6 +8,10 @@ html,
 body {
   height: 100%;
   margin: 0;
+  /* the page must never scroll: Dockview sizes its grid from fractional
+     measurements and can overshoot the window by under a pixel; a document
+     scrollbar would shrink the viewport, relayout the grid, and oscillate */
+  overflow: hidden;
   /* Chromium paints its own canvas behind a background-less page, so the
      window's backgroundColor would not show through */
   background: var(--background);
