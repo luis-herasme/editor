@@ -29,6 +29,16 @@ body {
   font-family: var(--ui-font-family);
 }
 
+/* Form controls take a font from the browser, not from the page, so every
+   one of them would sit out a UI font change unless told otherwise. The
+   controls inside Dockview's chrome still name the font themselves: they
+   inherit from its stylesheet, not from ours. */
+button,
+input,
+select {
+  font-family: inherit;
+}
+
 /* Replaces the hidden native title bar (titleBarStyle: hiddenInset in
    main/index.ts). app-region: drag keeps the native behaviors: dragging
    moves the window, double-click zooms it. */
