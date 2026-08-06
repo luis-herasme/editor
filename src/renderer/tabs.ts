@@ -460,13 +460,19 @@ async function openMarkdownTab({
   contentElement.focus();
 }
 
+// Redraw in place: the restore waits for the diagrams, or the document is
+// still short and the browser clamps the position being restored.
+async function redrawMarkdown(tab: MarkdownTab): Promise<void> {
+  const scrollTop = tab.contentElement.scrollTop;
+  await showMarkdown(tab);
+  tab.contentElement.scrollTop = scrollTop;
+}
+
 async function reloadMarkdownTab(resolved: ResolvedTab): Promise<void> {
   const tab = resolved.tab;
   if (tab.kind !== "markdown") {
     return;
   }
-  // an edit shouldn't cost you your place in a long document
-  const scrollTop = tab.contentElement.scrollTop;
   const result = await window.bridge.readFile({
     path: tab.filePath,
     baseTabId: tab.baseTabId,
@@ -475,10 +481,8 @@ async function reloadMarkdownTab(resolved: ResolvedTab): Promise<void> {
     result,
     filePath: tab.filePath,
   });
-  // after the diagrams, or the document is still short and the browser
-  // clamps the position we are restoring
-  await showMarkdown(tab);
-  tab.contentElement.scrollTop = scrollTop;
+  // an edit shouldn't cost you your place in a long document
+  await redrawMarkdown(tab);
   window.bridge.emitEvent({
     type: "markdown-reloaded",
     id: resolved.id,
@@ -634,11 +638,20 @@ export function executeCommand(command: Command): void {
       return;
     }
     case "update-settings": {
+      const previous = getSettings();
       updateSettings(command.settings);
       const settings = getSettings();
+      // a drawn diagram has the theme and the font baked into its SVG, so
+      // it only follows those two by being drawn again
+      const redraw =
+        settings.theme !== previous.theme ||
+        settings.markdownFontFamily !== previous.markdownFontFamily;
       for (const workspace of workspaces.values()) {
         for (const tab of workspace.tabs.values()) {
-          if (tab.kind !== "terminal") {
+          if (tab.kind === "markdown") {
+            if (redraw) {
+              redrawMarkdown(tab);
+            }
             continue;
           }
           tab.terminal.options.fontFamily = settings.fontFamily;

@@ -28,6 +28,20 @@ if (!(uiFontFamilyInputElement instanceof HTMLInputElement)) {
   throw new Error("#settings-ui-font-family is not an <input>");
 }
 const uiFontFamilyInput: HTMLInputElement = uiFontFamilyInputElement;
+const markdownFontFamilyInputElement = requireElement(
+  "settings-markdown-font-family",
+);
+if (!(markdownFontFamilyInputElement instanceof HTMLInputElement)) {
+  throw new Error("#settings-markdown-font-family is not an <input>");
+}
+const markdownFontFamilyInput: HTMLInputElement = markdownFontFamilyInputElement;
+const markdownFontSizeInputElement = requireElement(
+  "settings-markdown-font-size",
+);
+if (!(markdownFontSizeInputElement instanceof HTMLInputElement)) {
+  throw new Error("#settings-markdown-font-size is not an <input>");
+}
+const markdownFontSizeInput: HTMLInputElement = markdownFontSizeInputElement;
 
 for (const name of Object.keys(THEMES)) {
   const option = document.createElement("option");
@@ -46,6 +60,8 @@ function showCurrentSettings(): void {
   fontFamilyInput.value = settings.fontFamily;
   fontSizeInput.value = String(settings.fontSize);
   uiFontFamilyInput.value = settings.uiFontFamily;
+  markdownFontFamilyInput.value = settings.markdownFontFamily;
+  markdownFontSizeInput.value = String(settings.markdownFontSize);
 }
 
 requireElement("settings-button").addEventListener("click", () => {
@@ -81,6 +97,22 @@ uiFontFamilyInput.addEventListener("change", () => {
   executeCommand({
     type: "update-settings",
     settings: { uiFontFamily: uiFontFamilyInput.value },
+  });
+  showCurrentSettings();
+});
+
+markdownFontFamilyInput.addEventListener("change", () => {
+  executeCommand({
+    type: "update-settings",
+    settings: { markdownFontFamily: markdownFontFamilyInput.value },
+  });
+  showCurrentSettings();
+});
+
+markdownFontSizeInput.addEventListener("change", () => {
+  executeCommand({
+    type: "update-settings",
+    settings: { markdownFontSize: Number(markdownFontSizeInput.value) },
   });
   showCurrentSettings();
 });

@@ -361,6 +361,22 @@ change it and update this list.
   non-default theme; a config file would fix this if one ever lands),
   and a second app instance finds the storage locked, so settings.ts
   treats persistence as best-effort rather than crashing.
+- **The rendered document has its own font, and the dialog has sections.**
+  (Decided 2026-08.) A Markdown view is prose, not chrome: reading it
+  wants a different typeface, and often a larger size, than tab labels do.
+  So `markdownFontFamily`/`markdownFontSize` join the settings and reach
+  the view as `--markdown-font-family`/`--markdown-font-size`, leaving
+  `uiFontFamily` to the chrome it was always about; code inside a document
+  keeps the terminal's font, because code is code. The dialog grew
+  headings to match (Terminal, Interface, Markdown), the theme staying
+  above them as the one setting that colors everything. One consequence
+  worth naming: a mermaid diagram bakes the theme and the font into the
+  SVG when it is drawn, so it can only follow a change by being drawn
+  again. `update-settings` therefore redraws open Markdown tabs, but only
+  when the theme or the Markdown font actually changed, and each redraw
+  restores the scroll position the same way a reload does. This also fixes
+  a wart that predates the setting: diagrams used to keep the old palette
+  after a theme switch.
 - **The sidebar's width is a setting, dragged rather than typed.**
   (Decided 2026-08, when the sidebar grew from an icon strip to a named
   workspace list.) `sidebarWidth` joins the other settings, so it is

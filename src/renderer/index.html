@@ -45,17 +45,32 @@
         Theme
         <select id="settings-theme"></select>
       </label>
+      <h3 class="settings-section">Terminal</h3>
       <label class="settings-row">
-        Terminal font
+        Font
         <input id="settings-font-family" type="text" spellcheck="false" />
       </label>
       <label class="settings-row">
         Font size
         <input id="settings-font-size" type="number" min="8" max="32" />
       </label>
+      <h3 class="settings-section">Interface</h3>
       <label class="settings-row">
-        UI font
+        Font
         <input id="settings-ui-font-family" type="text" spellcheck="false" />
+      </label>
+      <h3 class="settings-section">Markdown</h3>
+      <label class="settings-row">
+        Font
+        <input
+          id="settings-markdown-font-family"
+          type="text"
+          spellcheck="false"
+        />
+      </label>
+      <label class="settings-row">
+        Font size
+        <input id="settings-markdown-font-size" type="number" min="8" max="32" />
       </label>
       <div class="dialog-buttons">
         <button id="settings-done" class="default">Done</button>

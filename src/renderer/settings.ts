@@ -10,6 +10,10 @@ const STORAGE_KEY = "settings";
 export const MIN_SIDEBAR_WIDTH_PX = 120;
 export const MAX_SIDEBAR_WIDTH_PX = 400;
 
+// every font size in the app, terminal and document alike
+const MIN_FONT_SIZE_PX = 8;
+const MAX_FONT_SIZE_PX = 32;
+
 // THEMES has literal keys; lookups use user-supplied strings
 const themesByName: Record<string, Theme> = THEMES;
 
@@ -28,8 +32,21 @@ const settingsSchema = z
       .catch(DEFAULT_SETTINGS.uiFontFamily),
     fontSize: z
       .number()
-      .transform((size) => Math.min(32, Math.max(8, Math.round(size))))
+      .transform((size) =>
+        Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, Math.round(size))),
+      )
       .catch(DEFAULT_SETTINGS.fontSize),
+    markdownFontFamily: z
+      .string()
+      .trim()
+      .min(1)
+      .catch(DEFAULT_SETTINGS.markdownFontFamily),
+    markdownFontSize: z
+      .number()
+      .transform((size) =>
+        Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, Math.round(size))),
+      )
+      .catch(DEFAULT_SETTINGS.markdownFontSize),
     sidebarWidth: z
       .number()
       .transform((width) =>
@@ -79,16 +96,22 @@ export function applyCssVariables(): void {
     fontFamily: settings.fontFamily,
     fontSize: settings.fontSize,
     uiFontFamily: settings.uiFontFamily,
+    markdownFontFamily: settings.markdownFontFamily,
   };
   for (const [key, value] of Object.entries(values)) {
     const cssName =
       "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
     document.documentElement.style.setProperty(cssName, String(value));
   }
-  // set apart from the loop: a length needs its unit, the others don't
+  // set apart from the loop: lengths need their unit, colors and font
+  // stacks don't
   document.documentElement.style.setProperty(
     "--sidebar-width",
     `${settings.sidebarWidth}px`,
+  );
+  document.documentElement.style.setProperty(
+    "--markdown-font-size",
+    `${settings.markdownFontSize}px`,
   );
   let highlightFile = "vs.min.css";
   if (currentTheme().colorScheme === "dark") {

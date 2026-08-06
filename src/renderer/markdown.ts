@@ -105,7 +105,7 @@ async function renderMermaidDiagrams(view: HTMLElement): Promise<void> {
       attributeBackgroundColorEven: theme.tabBarBackground,
       noteBkgColor: theme.tabBarBackground,
       noteTextColor: theme.tabActiveForeground,
-      fontFamily: getSettings().uiFontFamily,
+      fontFamily: getSettings().markdownFontFamily,
     },
   });
   for (const fence of fences) {

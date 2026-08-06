@@ -60,12 +60,15 @@ export type LmuxEvent =
   | { type: "markdown-reloaded"; id: number; state: LmuxState };
 
 // `theme` stays a plain string so this file stays types-only; the consumer
-// validates it. fontFamily/fontSize are the terminal's, uiFontFamily the chrome.
+// validates it. fontFamily/fontSize are the terminal's, uiFontFamily the
+// chrome's, markdownFont* the rendered document's.
 export interface Settings {
   theme: string;
   fontFamily: string;
   fontSize: number;
   uiFontFamily: string;
+  markdownFontFamily: string;
+  markdownFontSize: number;
   sidebarWidth: number; // pixels; the sidebar's drag handle is its UI
 }
 

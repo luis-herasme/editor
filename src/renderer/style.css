@@ -325,6 +325,16 @@ dialog select:focus {
   border-color: var(--accent);
 }
 
+/* groups the rows below it: Terminal, Interface, Markdown */
+.settings-section {
+  margin: 16px 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tab-foreground);
+}
+
 /* label text left, control right; the label wraps its control so clicking
    the text focuses it */
 .settings-row {
@@ -423,8 +433,8 @@ dialog select:focus {
 .markdown-view {
   padding: 24px max(32px, calc((100% - 880px) / 2));
   color: var(--tab-active-foreground);
-  font-family: var(--ui-font-family);
-  font-size: 14px;
+  font-family: var(--markdown-font-family);
+  font-size: var(--markdown-font-size);
   line-height: 1.6;
   overflow-wrap: break-word;
 }
