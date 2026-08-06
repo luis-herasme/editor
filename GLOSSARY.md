@@ -320,6 +320,13 @@ same word means "the set of things I'm currently working on"; this app's
 version is closest to i3's or macOS's *desktops* (Mission Control spaces):
 several independent screens, one visible.
 
+A workspace names itself after its active tab, so the sidebar row and the
+title bar say whatever that tab says: the shell's own title (which zsh
+keeps at `user@host:cwd`), or a Markdown file's name. Renaming a workspace
+pins the name against that, exactly as renaming a tab pins it against the
+shell; renaming it to `""` unpins and lets it follow again. A workspace
+with no tabs falls back to `Workspace N`.
+
 The mechanic is one docking layout manager instance per workspace, hidden
 with `display: none` when it isn't the active one. Nothing is serialized or
 rebuilt on a switch, which is what keeps a terminal's scrollback, its

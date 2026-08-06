@@ -35,6 +35,7 @@ export interface Workspace {
   dockview: DockviewComponent;
   tabs: Map<number, Tab>;
   activeId: number;
+  namePinned: boolean;
 }
 
 export const workspaces = new Map<number, Workspace>();
@@ -126,16 +127,16 @@ export function createWorkspace(): Workspace {
 
   const workspace: Workspace = {
     id,
-    name: `Workspace ${id}`,
+    name: "", // refreshWorkspaceName fills it in, below
     element,
     buttonElement,
     dockview: new dockviewLibrary.DockviewComponent(element, DOCKVIEW_OPTIONS),
     tabs: new Map(),
     activeId: -1,
+    namePinned: false,
   };
   workspaces.set(id, workspace);
-  buttonElement.textContent = workspace.name;
-  buttonElement.title = workspace.name;
+  refreshWorkspaceName(workspace);
 
   // Drag-and-drop interception: cancel the drop, re-issue it as a Command,
   // and let the consumer perform the identical move.
@@ -204,6 +205,7 @@ export function createWorkspace(): Workspace {
       return;
     }
     workspace.activeId = tabId;
+    refreshWorkspaceName(workspace);
     focusActiveTab();
     window.bridge.emitEvent({
       type: "tab-activated",
@@ -281,6 +283,24 @@ export function setWorkspaceName({
   if (workspace === activeWorkspace) {
     titleBarElement.textContent = name;
   }
+}
+
+// A workspace wears its active tab's title, the way a tab wears the title
+// its shell announces; an explicit rename pins it against both. Call this
+// wherever the active tab, or its title, can have changed.
+export function refreshWorkspaceName(workspace: Workspace): void {
+  if (workspace.namePinned) {
+    return;
+  }
+  let name = `Workspace ${workspace.id}`;
+  const activeTab = workspace.tabs.get(workspace.activeId);
+  if (activeTab && activeTab.titleElement.textContent !== null) {
+    name = activeTab.titleElement.textContent;
+  }
+  setWorkspaceName({
+    workspace,
+    name,
+  });
 }
 
 type FoundTab = {

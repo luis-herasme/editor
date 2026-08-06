@@ -32,7 +32,7 @@ export type Command =
   // Kills every shell in the workspace; the last workspace can't be closed.
   | { type: "close-workspace"; id?: number }
   | { type: "activate-workspace"; id: number }
-  // `name: ""` reverts to the default name.
+  // Pins the name against the active tab's title; `name: ""` unpins.
   | { type: "rename-workspace"; id?: number; name: string };
 
 // Every event carries the full state it produced.
@@ -84,6 +84,7 @@ export type LayoutNode =
 // running.
 export interface WorkspaceInfo {
   id: number;
+  // the active tab's title, unless an explicit rename pinned it
   name: string;
   tabs: TabInfo[]; // this workspace's tabs, in visual order
   layout: LayoutNode | null; // null only while the workspace has no tabs

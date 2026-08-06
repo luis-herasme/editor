@@ -421,7 +421,15 @@ change it and update this list.
   per workspace carrying its whole name, the active one accented, the gear
   pushed to the bottom. Names, not numbers, because the name is the
   workspace's identity: a numbered strip made a rename invisible in the one
-  place you pick a workspace from. The
+  place you pick a workspace from. A workspace takes its name from its
+  active tab, the same relationship a tab has with its shell's OSC title
+  one level down, and `rename-workspace` pins it against that just as an
+  explicit tab rename pins against the shell (`""` unpins; a workspace with
+  no tabs falls back to `Workspace N`). A derived rename emits no
+  `workspace-renamed` Event of its own: it is a consequence of the
+  `tab-activated`, `tab-retitled` or `tab-closed` that caused it, and rides
+  out in that Event's snapshot, so observers never see the same change
+  announced twice. The
   mechanic is the cheapest one that preserves state: instead of serializing
   a layout and rebuilding it on every switch (which would recreate every
   xterm.js instance and lose scrollback, cursor and running program), each

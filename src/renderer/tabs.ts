@@ -8,6 +8,7 @@ import {
   createWorkspace,
   findGroup,
   findTab,
+  refreshWorkspaceName,
   removeWorkspace,
   setWorkspaceName,
   snapshot,
@@ -492,6 +493,7 @@ export function executeCommand(command: Command): void {
       }
       tab.titleElement.textContent = title;
       tab.panel.setTitle(title);
+      refreshWorkspaceName(resolved.workspace);
       window.bridge.emitEvent({
         type: "tab-retitled",
         id,
@@ -611,14 +613,17 @@ export function executeCommand(command: Command): void {
       if (workspace === undefined) {
         return;
       }
-      let name = command.name.trim();
+      const name = command.name.trim();
+      workspace.namePinned = name !== "";
       if (name === "") {
-        name = `Workspace ${workspace.id}`;
+        refreshWorkspaceName(workspace);
       }
-      setWorkspaceName({
-        workspace,
-        name,
-      });
+      if (name !== "") {
+        setWorkspaceName({
+          workspace,
+          name,
+        });
+      }
       window.bridge.emitEvent({
         type: "workspace-renamed",
         id: workspace.id,
@@ -652,6 +657,9 @@ export function removeTab(id: number): void {
     workspace.activeId = -1;
   }
   workspace.dockview.api.removePanel(tab.panel);
+  // removing the last tab activates no other panel, so nothing else would
+  // take the name off the tab that just left
+  refreshWorkspaceName(workspace);
   window.bridge.emitEvent({
     type: "tab-closed",
     id,
