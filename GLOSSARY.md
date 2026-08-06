@@ -335,6 +335,16 @@ one thing a hidden workspace can't do is measure itself (a hidden element
 reports a zero-sized box), so terminals skip fitting while they're away and
 re-fit when their workspace comes forward.
 
+## Rendered vs. raw (a markdown tab's two modes)
+
+The same file, shown two ways. *Rendered* is the document: headings as
+headings, tables as tables, ```mermaid fences as drawn diagrams. *Raw* is
+the file's own text, the characters on disk, in the terminal's font. The
+toolbar's first button swaps between them and names the mode it would
+switch to, the way a play button names what it will do rather than what
+is happening. The second button re-reads the file, since nothing watches
+the disk: edit a document in one tab, click Reload in the tab showing it.
+
 ## Drag-and-drop interception (the one-door rule)
 
 How Dockview stays subordinate to the command bus. A docking library

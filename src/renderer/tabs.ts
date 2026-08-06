@@ -15,8 +15,8 @@ import {
   workspaces,
 } from "./workspaces.js";
 import type { Workspace } from "./workspaces.js";
-import type { Command } from "../api.js";
-import type { ShellDataMessage } from "../ipc/bridge.js";
+import type { Command, MarkdownMode } from "../api.js";
+import type { ReadFileResult, ShellDataMessage } from "../ipc/bridge.js";
 import type { ITheme, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
 import type { DockviewGroupPanel, IDockviewPanel } from "dockview";
@@ -41,7 +41,15 @@ interface TerminalTab extends TabCommon {
 
 interface MarkdownTab extends TabCommon {
   kind: "markdown";
-  element: HTMLElement;
+  element: HTMLElement; // the pane: toolbar above, content below
+  contentElement: HTMLElement; // what scrolls and takes focus
+  modeButton: HTMLElement;
+  // what a reload re-reads: the resolved path once we have one, so a
+  // reload doesn't depend on the base tab's shell staying where it was
+  filePath: string;
+  baseTabId: number | undefined;
+  mode: MarkdownMode;
+  markdown: string; // the file's text, shown raw or rendered
 }
 
 export type Tab = TerminalTab | MarkdownTab;
@@ -297,6 +305,95 @@ function basename(filePath: string): string {
   return filePath.slice(slash + 1);
 }
 
+type MarkdownTextOptions = {
+  result: ReadFileResult;
+  filePath: string;
+};
+
+// A failed read is shown as a document of its own, so the tab (and its
+// reload button) survive a path that isn't there yet.
+function markdownText({ result, filePath }: MarkdownTextOptions): string {
+  if ("error" in result) {
+    return `# Could not open\n\n\`${filePath}\`\n\n${result.error}`;
+  }
+  return result.content;
+}
+
+// The text lands synchronously; the returned promise settles once any
+// diagrams have too, so a caller can measure the finished document.
+async function showMarkdown(tab: MarkdownTab): Promise<void> {
+  if (tab.mode === "raw") {
+    const source = document.createElement("pre");
+    source.className = "markdown-raw";
+    source.textContent = tab.markdown;
+    tab.modeButton.textContent = "Rendered";
+    tab.contentElement.replaceChildren(source);
+    return;
+  }
+  const { view, ready } = renderMarkdown(tab.markdown);
+  tab.modeButton.textContent = "Raw";
+  tab.contentElement.replaceChildren(view);
+  await ready;
+}
+
+type MarkdownPane = {
+  paneElement: HTMLElement;
+  contentElement: HTMLElement;
+  modeButton: HTMLElement;
+};
+
+// The toolbar's buttons are Command sources like every other affordance;
+// each reads the tab back out of the store when clicked.
+function buildMarkdownPane(id: number): MarkdownPane {
+  const modeButton = document.createElement("button");
+  modeButton.className = "markdown-action";
+  modeButton.title = "Show the file's source, or its rendering";
+  modeButton.addEventListener("click", () => {
+    const found = findTab(id);
+    if (found === undefined || found.tab.kind !== "markdown") {
+      return;
+    }
+    let mode: MarkdownMode = "raw";
+    if (found.tab.mode === "raw") {
+      mode = "rendered";
+    }
+    executeCommand({
+      type: "set-markdown-mode",
+      id,
+      mode,
+    });
+  });
+
+  const reloadButton = document.createElement("button");
+  reloadButton.className = "markdown-action";
+  reloadButton.textContent = "Reload";
+  reloadButton.title = "Read the file again";
+  reloadButton.addEventListener("click", () => {
+    executeCommand({
+      type: "reload-markdown",
+      id,
+    });
+  });
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "markdown-toolbar";
+  toolbar.append(modeButton, reloadButton);
+
+  const contentElement = document.createElement("div");
+  contentElement.className = "markdown-scroll";
+  contentElement.tabIndex = -1;
+
+  const paneElement = document.createElement("div");
+  paneElement.className = "markdown-pane";
+  paneElement.append(toolbar, contentElement);
+
+  return {
+    paneElement,
+    contentElement,
+    modeButton,
+  };
+}
+
 type OpenMarkdownTabOptions = {
   workspace: Workspace;
   filePath: string;
@@ -316,15 +413,13 @@ async function openMarkdownTab({
   });
   const id = nextId++;
   const { tabElement, titleElement } = buildTabElement(id);
-  let element: HTMLElement;
+  const { paneElement, contentElement, modeButton } = buildMarkdownPane(id);
+
   let title = basename(filePath);
-  if ("error" in result) {
-    element = renderMarkdown(
-      `# Could not open\n\n\`${filePath}\`\n\n${result.error}`,
-    );
-  } else {
-    element = renderMarkdown(result.content);
+  let resolvedPath = filePath;
+  if (!("error" in result)) {
     title = basename(result.resolvedPath);
+    resolvedPath = result.resolvedPath;
   }
   titleElement.textContent = title;
 
@@ -333,25 +428,62 @@ async function openMarkdownTab({
     id,
     component: "markdown",
     title,
-    paneElement: element,
+    paneElement,
     tabElement,
     group,
   });
 
-  workspace.tabs.set(id, {
+  const tab: MarkdownTab = {
     kind: "markdown",
     panel,
     titleElement,
     titlePinned: true,
-    element,
-  });
+    element: paneElement,
+    contentElement,
+    modeButton,
+    filePath: resolvedPath,
+    baseTabId,
+    mode: "rendered",
+    markdown: markdownText({
+      result,
+      filePath,
+    }),
+  };
+  showMarkdown(tab);
+  workspace.tabs.set(id, tab);
   window.bridge.emitEvent({
     type: "tab-opened",
     id,
     state: snapshot(),
   });
   panel.api.setActive();
-  element.focus();
+  contentElement.focus();
+}
+
+async function reloadMarkdownTab(resolved: ResolvedTab): Promise<void> {
+  const tab = resolved.tab;
+  if (tab.kind !== "markdown") {
+    return;
+  }
+  // an edit shouldn't cost you your place in a long document
+  const scrollTop = tab.contentElement.scrollTop;
+  const result = await window.bridge.readFile({
+    path: tab.filePath,
+    baseTabId: tab.baseTabId,
+  });
+  tab.markdown = markdownText({
+    result,
+    filePath: tab.filePath,
+  });
+  // after the diagrams, or the document is still short and the browser
+  // clamps the position we are restoring
+  await showMarkdown(tab);
+  tab.contentElement.scrollTop = scrollTop;
+  window.bridge.emitEvent({
+    type: "markdown-reloaded",
+    id: resolved.id,
+    state: snapshot(),
+  });
 }
 
 export function executeCommand(command: Command): void {
@@ -546,6 +678,31 @@ export function executeCommand(command: Command): void {
       });
       return;
     }
+    case "set-markdown-mode": {
+      const resolved = resolveTab(command.id);
+      if (resolved === undefined || resolved.tab.kind !== "markdown") {
+        return;
+      }
+      if (resolved.tab.mode === command.mode) {
+        return;
+      }
+      resolved.tab.mode = command.mode;
+      showMarkdown(resolved.tab);
+      window.bridge.emitEvent({
+        type: "markdown-mode-changed",
+        id: resolved.id,
+        state: snapshot(),
+      });
+      return;
+    }
+    case "reload-markdown": {
+      const resolved = resolveTab(command.id);
+      if (resolved === undefined) {
+        return;
+      }
+      reloadMarkdownTab(resolved);
+      return;
+    }
     case "toggle-maximize": {
       const resolved = resolveTab(command.id);
       if (resolved === undefined) {
@@ -676,6 +833,6 @@ export function focusActiveTab(): void {
     tab.terminal.focus();
   }
   if (tab?.kind === "markdown") {
-    tab.element.focus();
+    tab.contentElement.focus();
   }
 }

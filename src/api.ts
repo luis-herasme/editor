@@ -27,6 +27,10 @@ export type Command =
       groupId?: string;
     }
   | { type: "toggle-maximize"; id?: number }
+  // Both ignore a tab that isn't a markdown one.
+  | { type: "set-markdown-mode"; id?: number; mode: MarkdownMode }
+  // Re-reads the file from disk, keeping the scroll position.
+  | { type: "reload-markdown"; id?: number }
   // A new workspace starts empty, becomes active, and gets one terminal tab.
   | { type: "new-workspace" }
   // Kills every shell in the workspace; the last workspace can't be closed.
@@ -50,7 +54,10 @@ export type LmuxEvent =
   | { type: "workspace-opened"; id: number; state: LmuxState }
   | { type: "workspace-closed"; id: number; state: LmuxState }
   | { type: "workspace-activated"; id: number; state: LmuxState }
-  | { type: "workspace-renamed"; id: number; state: LmuxState };
+  | { type: "workspace-renamed"; id: number; state: LmuxState }
+  | { type: "markdown-mode-changed"; id: number; state: LmuxState }
+  // the file was re-read; its text is in the view, not in the state
+  | { type: "markdown-reloaded"; id: number; state: LmuxState };
 
 // `theme` stays a plain string so this file stays types-only; the consumer
 // validates it. fontFamily/fontSize are the terminal's, uiFontFamily the chrome.
@@ -62,11 +69,12 @@ export interface Settings {
   sidebarWidth: number; // pixels; the sidebar's drag handle is its UI
 }
 
-export interface TabInfo {
-  id: number;
-  title: string;
-  kind: "terminal" | "markdown";
-}
+// A markdown tab shows the file rendered, or its source as it is on disk.
+export type MarkdownMode = "rendered" | "raw";
+
+export type TabInfo =
+  | { id: number; title: string; kind: "terminal" }
+  | { id: number; title: string; kind: "markdown"; mode: MarkdownMode };
 
 // One tab strip and the pane below it. Group ids are opaque handles
 // assigned by the layout engine, unique within their workspace only.

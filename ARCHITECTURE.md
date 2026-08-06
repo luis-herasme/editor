@@ -434,6 +434,26 @@ change it and update this list.
   tool; revisit before any remote surface exists), the last *shell*
   exiting still closes the window even if markdown tabs remain, and the
   wrapped-row index math assumes single-width characters.
+- **A markdown tab can show the file instead of the document, and can
+  re-read it.** (Decided 2026-08.) Two buttons in a toolbar at the top of
+  the pane: one swaps between the rendering and the file's own text, the
+  other reads the file again, for the ordinary case of editing a document
+  in one tab and reading it in the next. Both are Command sources like
+  every other affordance (`set-markdown-mode`, an idempotent setter rather
+  than a toggle so an outside caller can state what it wants, and
+  `reload-markdown`), and the mode is part of the state: `TabInfo` became
+  a union whose markdown arm carries it, which is the same discriminated
+  union `Tab` already is in the renderer. The toolbar lives inside the
+  pane rather than in the tab strip because Dockview's header actions
+  belong to a *group*, not to a tab, so they would appear over terminals
+  too. A reload keeps the scroll position, and that is why `renderMarkdown`
+  now returns its element together with a `ready` promise: mermaid
+  replaces its fences asynchronously with taller drawings, so restoring a
+  position before those land lets the browser clamp it to a document that
+  is still short (measured: 1500px became 1108px in README.md). The text
+  still appears synchronously; only the measuring waits. A failed read
+  becomes a document of its own, so the tab and its reload button survive
+  a file that isn't there, and reloading again recovers when it returns.
 - **Workspaces: one Dockview instance each, all alive at once.** (Decided
   2026-08.) A workspace is a whole lmux of its own inside the window: its
   own pane layout, its own tabs, its own shells (see the glossary). The

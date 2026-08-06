@@ -25,14 +25,23 @@ const parser = new markdownit({
   },
 });
 
-export function renderMarkdown(markdown: string): HTMLElement {
+export type MarkdownRender = {
+  view: HTMLElement;
+  // Diagrams arrive after the text, and a drawn one is taller than the
+  // fence it replaces: anything that measures the document (restoring a
+  // scroll position) has to wait for this.
+  ready: Promise<void>;
+};
+
+export function renderMarkdown(markdown: string): MarkdownRender {
   const view = document.createElement("article");
   view.className = "markdown-view";
-  view.tabIndex = -1;
   view.innerHTML = DOMPurify.sanitize(parser.render(markdown));
   renderTaskLists(view);
-  renderMermaidDiagrams(view);
-  return view;
+  return {
+    view,
+    ready: renderMermaidDiagrams(view),
+  };
 }
 
 // GFM task lists: "[ ] " → disabled checkbox, styled in style.css

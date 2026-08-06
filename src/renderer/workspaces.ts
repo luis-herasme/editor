@@ -434,10 +434,19 @@ function buildLayout({
       if (title === null) {
         title = "";
       }
+      if (tab.kind === "markdown") {
+        tabList.push({
+          id: Number(panelId),
+          title,
+          kind: "markdown",
+          mode: tab.mode,
+        });
+        continue;
+      }
       tabList.push({
         id: Number(panelId),
         title,
-        kind: tab.kind,
+        kind: "terminal",
       });
     }
     return {
