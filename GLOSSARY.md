@@ -93,8 +93,8 @@ in ARCHITECTURE.md.
 
 ## Command / Event
 
-The two halves of the editor's public interface (defined in `api.ts`).
-A **command** is an imperative request flowing *into* the editor ("open a
+The two halves of lmux's public interface (defined in `api.ts`).
+A **command** is an imperative request flowing *into* lmux ("open a
 tab", "type this text"), named in the imperative mood. An **event** is a
 fact flowing *out* ("tab 3 opened"), named in the past tense, and carrying
 a snapshot of the resulting state. Keeping the two directions as two words
@@ -311,7 +311,7 @@ drags stay disabled until a feature needs them.
 
 ## Workspace
 
-A whole editor of its own inside the same window: its own pane layout, its
+A whole lmux of its own inside the same window: its own pane layout, its
 own tabs, its own shells. The sidebar lists them and switching is one click;
 only one is on screen at a time, and the ones behind keep running, so a
 build left compiling in one workspace is still compiling when you come back

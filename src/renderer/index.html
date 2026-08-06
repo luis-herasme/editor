@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'"
     />
-    <title>Terminal</title>
+    <title>lmux</title>
     <link
       rel="stylesheet"
       href="../../node_modules/@xterm/xterm/css/xterm.css"
@@ -62,7 +62,8 @@
       </div>
     </dialog>
     <!-- The painted title bar (style.css); the native one is hidden -->
-    <div id="title-bar">Terminal</div>
+    <!-- replaced by the active workspace's name as soon as one exists -->
+    <div id="title-bar">lmux</div>
     <div id="workbench">
       <div id="sidebar">
         <!-- one button per workspace, filled by workspaces.ts -->

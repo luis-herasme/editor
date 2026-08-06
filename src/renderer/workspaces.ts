@@ -4,8 +4,8 @@
 import { executeCommand, focusActiveTab } from "./tabs.js";
 import type { Tab } from "./tabs.js";
 import type {
-  EditorState,
   LayoutNode,
+  LmuxState,
   TabInfo,
   WorkspaceInfo,
 } from "../api.js";
@@ -512,7 +512,7 @@ function describeWorkspace(workspace: Workspace): WorkspaceInfo {
   };
 }
 
-export function snapshot(): EditorState {
+export function snapshot(): LmuxState {
   const workspaceList: WorkspaceInfo[] = [];
   for (const workspace of workspaces.values()) {
     workspaceList.push(describeWorkspace(workspace));

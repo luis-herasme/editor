@@ -1,7 +1,7 @@
 // tsc refuses if preload.cts and the renderer disagree about this
 // shape. The shell protocol carries bytes/sizes/tab ids; the command
 // bus is the one structured channel.
-import type { Command, EditorEvent } from "../api.js";
+import type { Command, LmuxEvent } from "../api.js";
 
 export interface ShellSizeMessage {
   id: number;
@@ -32,7 +32,7 @@ export interface Bridge {
   onShellData: (callback: (message: ShellDataMessage) => void) => void;
   onShellExit: (callback: (id: number) => void) => void;
   onCommand: (callback: (command: Command) => void) => void;
-  emitEvent: (event: EditorEvent) => void;
+  emitEvent: (event: LmuxEvent) => void;
   showTabMenu: (id: number) => void;
   onRenameRequest: (callback: (id: number) => void) => void;
   showWorkspaceMenu: (id: number) => void;

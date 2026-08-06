@@ -24,9 +24,9 @@ window.bridge.onWorkspaceRenameRequest((id) => {
 
 declare global {
   interface Window {
-    editor: { command: (command: Command) => void };
+    lmux: { command: (command: Command) => void };
   }
 }
-window.editor = { command: executeCommand };
+window.lmux = { command: executeCommand };
 
 executeCommand({ type: "new-workspace" });

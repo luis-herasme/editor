@@ -4,7 +4,7 @@ Compiled from feedback Luis has given across all Claude Code sessions and projec
 
 ## What this project is
 
-A terminal emulator built with xterm.js + Electron. It is explicitly a **learning project**: the goal is to understand how terminal applications work, not just to ship one. Features are added incrementally, only when actually needed. The trajectory has shifted from "toy" toward a large codebase with a public command API (the command bus) so an agent can drive the editor (see ARCHITECTURE.md).
+A terminal emulator built with xterm.js + Electron. It is explicitly a **learning project**: the goal is to understand how terminal applications work, not just to ship one. Features are added incrementally, only when actually needed. The trajectory has shifted from "toy" toward a large codebase with a public command API (the command bus) so an agent can drive lmux (see ARCHITECTURE.md).
 
 ## Workflow
 
@@ -125,4 +125,4 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 - **Minimal solution first.** Write the smallest working version of a feature. No abstractions for features that don't exist yet, no build tooling unless it becomes necessary. Refactor only when a new feature actually demands it.
 - **Minimal tooling.** Default to the most boring, most widely-known tool. No extra package managers, task runners, or config layers unless a concrete problem forces it.
 - **Native ESM only, no CommonJS.** Hand-written `require()` is a code smell. Everything compiles to native ESM (`"type": "module"`, tsconfig `module: nodenext`); write `import` with explicit `.js` extensions. The single sanctioned exception is `src/preload.cts` (Electron's sandbox requires a CommonJS preload; tsc emits it as `.cjs`). Prefer removing the cause of a wart over documenting the wart.
-- **No hand-written `.d.ts` files.** Shared types live in ordinary `.ts` modules (e.g. `api.ts`) using `export type` / `import type`, so every name has a greppable import stating where it comes from. Reserve `declare global` for names that genuinely exist on the runtime global scope (`window.terminal`, `window.editor`, xterm's classic-script globals), placed next to their creator/consumer. Empty emitted `dist/*.js` for types-only modules is acceptable.
+- **No hand-written `.d.ts` files.** Shared types live in ordinary `.ts` modules (e.g. `api.ts`) using `export type` / `import type`, so every name has a greppable import stating where it comes from. Reserve `declare global` for names that genuinely exist on the runtime global scope (`window.terminal`, `window.lmux`, xterm's classic-script globals), placed next to their creator/consumer. Empty emitted `dist/*.js` for types-only modules is acceptable.

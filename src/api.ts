@@ -1,6 +1,6 @@
 // Try me in devtools (⌥⌘I):
-//   editor.command({ type: "new-tab" })
-//   editor.command({ type: "write", text: "ls\n" })
+//   lmux.command({ type: "new-tab" })
+//   lmux.command({ type: "write", text: "ls\n" })
 // Types only: the emitted api.js is empty.
 
 export type SplitSide = "left" | "right" | "top" | "bottom";
@@ -38,19 +38,19 @@ export type Command =
 // Every event carries the full state it produced.
 
 
-export type EditorEvent =
-  | { type: "tab-opened"; id: number; state: EditorState }
-  | { type: "tab-closed"; id: number; state: EditorState }
-  | { type: "tab-retitled"; id: number; state: EditorState }
-  | { type: "tab-moved"; id: number; state: EditorState }
-  | { type: "tab-activated"; id: number; state: EditorState }
+export type LmuxEvent =
+  | { type: "tab-opened"; id: number; state: LmuxState }
+  | { type: "tab-closed"; id: number; state: LmuxState }
+  | { type: "tab-retitled"; id: number; state: LmuxState }
+  | { type: "tab-moved"; id: number; state: LmuxState }
+  | { type: "tab-activated"; id: number; state: LmuxState }
   // carries the settings as they actually took effect, not as requested
-  | { type: "settings-changed"; settings: Settings; state: EditorState }
-  | { type: "maximize-changed"; id: number; state: EditorState }
-  | { type: "workspace-opened"; id: number; state: EditorState }
-  | { type: "workspace-closed"; id: number; state: EditorState }
-  | { type: "workspace-activated"; id: number; state: EditorState }
-  | { type: "workspace-renamed"; id: number; state: EditorState };
+  | { type: "settings-changed"; settings: Settings; state: LmuxState }
+  | { type: "maximize-changed"; id: number; state: LmuxState }
+  | { type: "workspace-opened"; id: number; state: LmuxState }
+  | { type: "workspace-closed"; id: number; state: LmuxState }
+  | { type: "workspace-activated"; id: number; state: LmuxState }
+  | { type: "workspace-renamed"; id: number; state: LmuxState };
 
 // `theme` stays a plain string so this file stays types-only; the consumer
 // validates it. fontFamily/fontSize are the terminal's, uiFontFamily the chrome.
@@ -79,7 +79,7 @@ export type LayoutNode =
   | { type: "group"; group: GroupInfo }
   | { type: "split"; direction: "row" | "column"; children: LayoutNode[] };
 
-// A workspace is a whole editor of its own: its own pane layout, its own
+// A workspace is a whole lmux of its own: its own pane layout, its own
 // tabs, its own shells. Only one is on screen at a time; the rest keep
 // running.
 export interface WorkspaceInfo {
@@ -91,7 +91,7 @@ export interface WorkspaceInfo {
   maximizedGroupId: string | null; // the group filling the window, if any
 }
 
-export interface EditorState {
+export interface LmuxState {
   workspaces: WorkspaceInfo[]; // in sidebar order
   activeWorkspaceId: number; // -1 only before the first workspace exists
 }

@@ -72,7 +72,7 @@ Rules that keep this boundary healthy:
    file paths, no structured objects. The renderer never knows what shell
    is running; the main process never knows how the screen is drawn. The
    one deliberate exception is the command bus (next section): a single
-   pair of channels carrying typed `Command`/`EditorEvent` objects, whose
+   pair of channels carrying typed `Command`/`LmuxEvent` objects, whose
    shapes live in `api.ts` and are compile-checked on both sides.
 2. **The renderer stays a dumb screen.** Anything that touches the OS
    (processes, files, clipboard writes are the one pragmatic exception)
@@ -86,11 +86,11 @@ page can only ever do what these functions allow.
 
 ## The command bus: the public interface
 
-The most important seam in the project. Everything the editor can do is
+The most important seam in the project. Everything lmux can do is
 expressible as a **Command** (an imperative request: "open a tab", "type
 this text"), and everything that happens is announced as an **Event** (a
 fact: "tab 3 opened", with a snapshot of the resulting state). The two
-unions in `api.ts` *are* the editor's public API; that file is the one
+unions in `api.ts` *are* lmux's public API; that file is the one
 to read first.
 
 ```
@@ -104,7 +104,7 @@ to read first.
 
 The rule that keeps the API honest: **every UI affordance goes through a
 command**. The × button, the + button, clicking a tab, ⌘T: none of them
-call editor functions directly; they all issue the same Commands an
+call lmux's functions directly; they all issue the same Commands an
 external caller would. The UI is just the first API client, so the API
 can never lag behind the UI.
 
@@ -115,9 +115,9 @@ Two consequences worth naming:
   never needs a query protocol: whatever arrives last is the truth. Main
   keeps the latest snapshot as the read model a future server will answer
   from.
-- **The console is the API today.** `window.editor.command({type: "new-tab"})`
+- **The console is the API today.** `window.lmux.command({type: "new-tab"})`
   in devtools (⌥⌘I) drives the real bus. The eventual goal (a local
-  server so an LLM agent can fully drive the editor) is then a main-only
+  server so an LLM agent can fully drive lmux) is then a main-only
   change: a second caller of `dispatch`, plus streaming Events and
   terminal output (which already flows through main) back out.
 
@@ -128,7 +128,7 @@ the public interface at the top.
 
 ```
 src/
-  api.ts             the public interface: Command / EditorEvent / EditorState / Settings
+  api.ts             the public interface: Command / LmuxEvent / LmuxState / Settings
   theme.ts           the theme palettes (THEMES) and default settings, imported by both sides
   ipc/               the cable
     bridge.ts          the contract type (window.bridge)
@@ -181,7 +181,7 @@ change it and update this list.
   once "where is this defined?" becomes a real question. `api.ts` and
   `bridge.ts` are ordinary modules exporting types; `declare global` is
   reserved for names that genuinely exist on the global scope at runtime
-  (`window.bridge`, `window.editor`, xterm's classic-script globals) and
+  (`window.bridge`, `window.lmux`, xterm's classic-script globals) and
   lives next to what creates or consumes them. Cost we accept: tsc emits an
   empty `dist/api.js` and `dist/ipc/bridge.js` that nothing ever loads.
 - **Tabs: a tab id on every message.** (Replaced "one window, one shell,
@@ -302,7 +302,7 @@ change it and update this list.
   and Dockview supports it: every drop fires a cancelable `onWillDrop`
   *before* any mutation, so tabs.ts cancels the drop, re-issues it as a
   `move-tab` Command, and the consumer performs the identical move through
-  `panel.api.moveTo()`. A drag therefore enters the editor through the same
+  `panel.api.moveTo()`. A drag therefore enters lmux through the same
   door as a menu click (see "Drag-and-drop interception" in the glossary).
   Dockview is confined to workspaces.ts (which owns the instances) and the
   few layout calls left in tabs.ts; `api.ts`, the bridge, and
@@ -313,7 +313,7 @@ change it and update this list.
   mousedown; and the library arrives as a classic-script global like
   xterm.js, plus its stylesheet, retinted from theme.ts by overriding its
   CSS custom properties. Splits shipped through the same door (2026-08):
-  `EditorState.layout` models the pane tree as groups (leaves) and splits
+  `LmuxState.layout` models the pane tree as groups (leaves) and splits
   (branches), built by walking Dockview's own layout serialization, so
   observers see arrangement, not pixels. Dropping a tab on a pane's edge
   issues `split-tab`, on a pane's center `move-tab` into that group, and
@@ -324,7 +324,7 @@ change it and update this list.
   tab-overflow dropdown is disabled, because it cannot render our custom
   tab components (the strip scrolls instead). Double-clicking a tab
   issues `toggle-maximize` (2026-08, the tmux-zoom gesture): the tab's
-  group fills the window and `EditorState.maximizedGroupId` records it.
+  group fills the window and `LmuxState.maximizedGroupId` records it.
 - **The title bar is painted, not native.** (Decided 2026-08.) macOS
   offers no way to recolor the standard title bar, so the window is
   created with `titleBarStyle: "hiddenInset"`: the traffic lights stay
@@ -389,9 +389,9 @@ change it and update this list.
   plugin for them ships no browser build), sanitized by DOMPurify because
   Markdown may embed raw HTML, and styled by our own rules in style.css:
   GitHub's *layout* (headings, tables, task lists, spacing) but the
-  editor's palette, every surface derived from the theme variables.
+  lmux's palette, every surface derived from the theme variables.
   (github-markdown-css was tried first and removed: its hardcoded GitHub
-  colors could never sit flush with the editor's background.)
+  colors could never sit flush with lmux's background.)
   The markdown libraries are imported as their self-contained browser ESM
   bundles, by path like zod, not as classic-script globals; the two
   bundles without adjacent declaration files borrow their types from the
@@ -415,7 +415,7 @@ change it and update this list.
   exiting still closes the window even if markdown tabs remain, and the
   wrapped-row index math assumes single-width characters.
 - **Workspaces: one Dockview instance each, all alive at once.** (Decided
-  2026-08.) A workspace is a whole editor of its own inside the window: its
+  2026-08.) A workspace is a whole lmux of its own inside the window: its
   own pane layout, its own tabs, its own shells (see the glossary). The
   sidebar, which held only the settings gear, becomes their list: one row
   per workspace carrying its whole name, the active one accented, the gear
@@ -433,7 +433,7 @@ change it and update this list.
   change (`new-workspace`, `close-workspace`, `activate-workspace`,
   `rename-workspace`, four matching Events) plus one new IPC pair for the
   workspace context menu, which is the tab-menu pattern repeated.
-  `EditorState` grew a level to match the model: `{workspaces,
+  `LmuxState` grew a level to match the model: `{workspaces,
   activeWorkspaceId}`, each workspace carrying the tabs/layout/activeId
   that used to sit at the top. Costs we accept: a hidden element measures
   zero, so terminals skip fitting while their workspace is away and re-fit
@@ -477,10 +477,10 @@ A quick map so features land on the right side of the cable:
   `config:get` message or similar), shell integration/OSC hooks (new main →
   renderer events), VS Code view (a message telling the renderer what port
   openvscode-server landed on). Splits proved the tier system: they
-  shipped as a bus change (`split-tab`, `EditorState.layout`) with zero
+  shipped as a bus change (`split-tab`, `LmuxState.layout`) with zero
   IPC change, because each split's terminal reuses the per-tab shell
   machinery unchanged. Workspaces proved it again at a larger size: a whole
-  second editor inside the window cost four Commands and no shell-protocol
+  second lmux inside the window cost four Commands and no shell-protocol
   change, because tab ids were already the only thing main knew about.
 
 The rule of thumb: protocol changes get a moment of planning in this doc

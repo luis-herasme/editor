@@ -1,4 +1,4 @@
-# editor-terminal
+# lmux
 
 A minimal terminal emulator for macOS, built with [Electron](https://www.electronjs.org/)
 and [xterm.js](https://xtermjs.org/) as a learning project. Unfamiliar terms are
@@ -99,19 +99,19 @@ the other end echoes it back.
 There is deliberately no bundler, no framework, and no abstraction for
 features we don't have yet. Features get added when we need them.
 
-## Driving the editor
+## Driving lmux
 
-Everything the editor can do is a Command, and everything that happens is
+Everything lmux can do is a Command, and everything that happens is
 an Event. The unions in [src/api.ts](src/api.ts) are the whole public
 interface, and the UI itself is just its first client. Try it from the
 devtools console (⌥⌘I):
 
 ```js
-editor.command({ type: "new-tab" })
-editor.command({ type: "write", text: "ls\n" })
-editor.command({ type: "close-tab" })
+lmux.command({ type: "new-tab" })
+lmux.command({ type: "write", text: "ls\n" })
+lmux.command({ type: "close-tab" })
 ```
 
 The endgame (see ARCHITECTURE.md, "The command bus") is a local server in
-the main process feeding the same bus, so an agent can fully drive the
-editor.
+the main process feeding the same bus, so an agent can fully drive
+lmux.
