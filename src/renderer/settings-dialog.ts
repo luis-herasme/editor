@@ -6,24 +6,42 @@ import { getSettings } from "./settings.js";
 import { executeCommand, focusActiveTab } from "./tabs.js";
 import { requireElement } from "./dom.js";
 
-const dialog = requireElement("settings-dialog", HTMLDialogElement);
-const themeSelect = requireElement("settings-theme", HTMLSelectElement);
-const fontFamilyInput = requireElement("settings-font-family", HTMLInputElement);
-const fontSizeInput = requireElement("settings-font-size", HTMLInputElement);
-const uiFontFamilyInput = requireElement(
-  "settings-ui-font-family",
-  HTMLInputElement,
-);
+const dialogElement = requireElement("settings-dialog");
+if (!(dialogElement instanceof HTMLDialogElement)) {
+  throw new Error("#settings-dialog is not a <dialog>");
+}
+const dialog: HTMLDialogElement = dialogElement;
+const themeSelectElement = requireElement("settings-theme");
+if (!(themeSelectElement instanceof HTMLSelectElement)) {
+  throw new Error("#settings-theme is not a <select>");
+}
+const themeSelect: HTMLSelectElement = themeSelectElement;
+const fontFamilyInputElement = requireElement("settings-font-family");
+if (!(fontFamilyInputElement instanceof HTMLInputElement)) {
+  throw new Error("#settings-font-family is not an <input>");
+}
+const fontFamilyInput: HTMLInputElement = fontFamilyInputElement;
+const fontSizeInputElement = requireElement("settings-font-size");
+if (!(fontSizeInputElement instanceof HTMLInputElement)) {
+  throw new Error("#settings-font-size is not an <input>");
+}
+const fontSizeInput: HTMLInputElement = fontSizeInputElement;
+const uiFontFamilyInputElement = requireElement("settings-ui-font-family");
+if (!(uiFontFamilyInputElement instanceof HTMLInputElement)) {
+  throw new Error("#settings-ui-font-family is not an <input>");
+}
+const uiFontFamilyInput: HTMLInputElement = uiFontFamilyInputElement;
 
 // one <option> per THEMES entry; the label derives from the key
 // ("solarized-dark" becomes "Solarized Dark")
 for (const name of Object.keys(THEMES)) {
   const option = document.createElement("option");
   option.value = name;
-  option.textContent = name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const words: string[] = [];
+  for (const word of name.split("-")) {
+    words.push(word.charAt(0).toUpperCase() + word.slice(1));
+  }
+  option.textContent = words.join(" ");
   themeSelect.append(option);
 }
 

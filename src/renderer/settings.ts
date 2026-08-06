@@ -59,7 +59,10 @@ export function currentTheme(): Theme {
 }
 
 export function updateSettings(partial: Partial<Settings>): void {
-  settings = settingsSchema.parse({ ...settings, ...partial });
+  settings = settingsSchema.parse({
+    ...settings,
+    ...partial,
+  });
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {
@@ -91,7 +94,7 @@ export function applyCssVariables(): void {
     highlightFile = "vs2015.min.css";
   }
   const highlightHref = `../../node_modules/@highlightjs/cdn-assets/styles/${highlightFile}`;
-  const highlightCss = requireElement("highlight-css", HTMLLinkElement);
+  const highlightCss = requireElement("highlight-css");
   if (highlightCss.getAttribute("href") !== highlightHref) {
     highlightCss.setAttribute("href", highlightHref);
   }

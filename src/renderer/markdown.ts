@@ -42,7 +42,7 @@ export function renderMarkdown(markdown: string): HTMLElement {
   view.tabIndex = -1; // focusable, so keyboard scrolling works
   view.innerHTML = DOMPurify.sanitize(parser.render(markdown));
   renderTaskLists(view);
-  void renderMermaidDiagrams(view);
+  renderMermaidDiagrams(view);
   return view;
 }
 

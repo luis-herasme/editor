@@ -8,10 +8,15 @@ const PATH_PATTERN = /[^\s"'`()[\]{}<>]+\.md\b/g;
 
 const MAX_LINE_LENGTH = 4096; // don't scan pathological lines
 
-export function registerMarkdownLinks(
-  terminal: XtermTerminal,
-  openPath: (path: string) => void,
-): void {
+type RegisterMarkdownLinksOptions = {
+  terminal: XtermTerminal;
+  openPath: (path: string) => void;
+};
+
+export function registerMarkdownLinks({
+  terminal,
+  openPath,
+}: RegisterMarkdownLinksOptions): void {
   terminal.registerLinkProvider({
     provideLinks: (bufferLineNumber, callback) => {
       // a long path wraps across buffer rows; join the logical line

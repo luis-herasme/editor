@@ -8,9 +8,10 @@ import { renderMarkdown } from "./markdown.js";
 import { registerMarkdownLinks } from "./markdown-links.js";
 import type { Command, EditorState, LayoutNode, TabInfo } from "../api.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
-import type { Terminal as XtermTerminal } from "@xterm/xterm";
+import type { ITheme, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
 import type {
+  AddPanelPositionOptions,
   DockviewGroupPanel,
   IDockviewPanel,
   SerializedDockview,
@@ -100,7 +101,10 @@ const dockview = new dockviewLibrary.DockviewComponent(layoutElement, {
     button.title = "New Tab (⌘T)";
     button.textContent = "+";
     button.addEventListener("click", () => {
-      executeCommand({ type: "new-tab", groupId: group.id });
+      executeCommand({
+        type: "new-tab",
+        groupId: group.id,
+      });
     });
     return {
       element: button,
@@ -257,12 +261,14 @@ export function getTabTitle(id: number): string | undefined {
   return title;
 }
 
+type BuildLayoutOptions = {
+  node: SerializedGridNode;
+  direction: "row" | "column";
+};
+
 // The pane arrangement as api.ts's LayoutNode tree, from Dockview's own
 // serialization. Nesting alternates direction at every level.
-function buildLayout(
-  node: SerializedGridNode,
-  direction: "row" | "column",
-): LayoutNode {
+function buildLayout({ node, direction }: BuildLayoutOptions): LayoutNode {
   const data = node.data;
   if (!Array.isArray(data)) {
     const serializedGroup: SerializedGroup = data;
@@ -296,7 +302,12 @@ function buildLayout(
   }
   const children: LayoutNode[] = [];
   for (const child of data) {
-    children.push(buildLayout(child, childDirection));
+    children.push(
+      buildLayout({
+        node: child,
+        direction: childDirection,
+      }),
+    );
   }
   return {
     type: "split",
@@ -305,7 +316,12 @@ function buildLayout(
   };
 }
 
-function collectTabs(node: LayoutNode, into: TabInfo[]): void {
+type CollectTabsOptions = {
+  node: LayoutNode;
+  into: TabInfo[];
+};
+
+function collectTabs({ node, into }: CollectTabsOptions): void {
   if (node.type === "group") {
     for (const tab of node.group.tabs) {
       into.push(tab);
@@ -313,7 +329,10 @@ function collectTabs(node: LayoutNode, into: TabInfo[]): void {
     return;
   }
   for (const child of node.children) {
-    collectTabs(child, into);
+    collectTabs({
+      node: child,
+      into,
+    });
   }
 }
 
@@ -339,9 +358,15 @@ function snapshot(): EditorState {
   if (serialized.grid.orientation === dockviewLibrary.Orientation.HORIZONTAL) {
     rootDirection = "row";
   }
-  const layout = buildLayout(serialized.grid.root, rootDirection);
+  const layout = buildLayout({
+    node: serialized.grid.root,
+    direction: rootDirection,
+  });
   const tabList: TabInfo[] = [];
-  collectTabs(layout, tabList);
+  collectTabs({
+    node: layout,
+    into: tabList,
+  });
   return {
     tabs: tabList,
     layout,
@@ -370,7 +395,7 @@ function copyOnCmdC(event: KeyboardEvent): boolean {
 }
 
 // the active theme in the names xterm's `theme` option expects
-function xtermTheme() {
+function xtermTheme(): ITheme {
   const theme = currentTheme();
   return {
     background: theme.background,
@@ -380,11 +405,13 @@ function xtermTheme() {
   };
 }
 
-// The strip chrome every tab kind shares: title, ×, context menu
-function buildTabElement(id: number): {
+type TabElements = {
   tabElement: HTMLElement;
   titleElement: HTMLElement;
-} {
+};
+
+// The strip chrome every tab kind shares: title, ×, context menu
+function buildTabElement(id: number): TabElements {
   const titleElement = document.createElement("span");
   titleElement.className = "tab-title";
   titleElement.textContent = "Untitled";
@@ -430,7 +457,7 @@ function createTab(group?: DockviewGroupPanel): void {
 
   // inactive: activation goes through the bus below, once the tab is
   // registered, so the Event carries a complete snapshot
-  let position: { referenceGroup: DockviewGroupPanel } | undefined;
+  let position: AddPanelPositionOptions | undefined;
   if (group !== undefined) {
     position = { referenceGroup: group };
   }
@@ -515,12 +542,15 @@ function createTab(group?: DockviewGroupPanel): void {
     });
   });
 
-  registerMarkdownLinks(terminal, (path) => {
-    executeCommand({
-      type: "open-markdown",
-      path,
-      baseTabId: id,
-    });
+  registerMarkdownLinks({
+    terminal,
+    openPath: (path) => {
+      executeCommand({
+        type: "open-markdown",
+        path,
+        baseTabId: id,
+      });
+    },
   });
 }
 
@@ -532,12 +562,18 @@ function basename(filePath: string): string {
   return filePath.slice(slash + 1);
 }
 
+type OpenMarkdownTabOptions = {
+  filePath: string;
+  baseTabId: number | undefined;
+  group: DockviewGroupPanel | undefined;
+};
+
 // async: the content comes over the cable (file:read in main)
-async function openMarkdownTab(
-  filePath: string,
-  baseTabId: number | undefined,
-  group: DockviewGroupPanel | undefined,
-): Promise<void> {
+async function openMarkdownTab({
+  filePath,
+  baseTabId,
+  group,
+}: OpenMarkdownTabOptions): Promise<void> {
   const result = await window.bridge.readFile({
     path: filePath,
     baseTabId,
@@ -554,7 +590,7 @@ async function openMarkdownTab(
   }
   titleElement.textContent = title;
 
-  let position: { referenceGroup: DockviewGroupPanel } | undefined;
+  let position: AddPanelPositionOptions | undefined;
   if (group !== undefined) {
     position = { referenceGroup: group };
   }
@@ -762,7 +798,11 @@ export function executeCommand(command: Command): void {
           return;
         }
       }
-      void openMarkdownTab(command.path, command.baseTabId, group);
+      openMarkdownTab({
+        filePath: command.path,
+        baseTabId: command.baseTabId,
+        group,
+      });
       return;
     }
     case "toggle-maximize": {

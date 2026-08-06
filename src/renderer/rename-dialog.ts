@@ -4,8 +4,16 @@
 import { executeCommand, getTabTitle, focusActiveTab } from "./tabs.js";
 import { requireElement } from "./dom.js";
 
-const dialog = requireElement("rename-dialog", HTMLDialogElement);
-const input = requireElement("rename-input", HTMLInputElement);
+const dialogElement = requireElement("rename-dialog");
+if (!(dialogElement instanceof HTMLDialogElement)) {
+  throw new Error("#rename-dialog is not a <dialog>");
+}
+const dialog: HTMLDialogElement = dialogElement;
+const inputElement = requireElement("rename-input");
+if (!(inputElement instanceof HTMLInputElement)) {
+  throw new Error("#rename-input is not an <input>");
+}
+const input: HTMLInputElement = inputElement;
 
 let targetId = -1;
 

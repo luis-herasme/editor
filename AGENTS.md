@@ -48,6 +48,7 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 - Avoid `??` and `||` value fallbacks. Expand to `let x = a; if (!x) { x = b; }`. Boolean conditions like `if (a && b)` are fine; this is about value-producing operators.
 - Never `!!value`; use `Boolean(value)`.
+- Never prefix a function call with `void` to discard its result (`void doThing()`). Call the function plainly.
 - Prefer plain `for...of` loops with `continue` guards and `.push()` over `map`/`filter`/`reduce`/`flatMap` chains.
 - No single-use predicate functions for `.find()`/`.filter()`. Select from a list with a `for` loop, explicit `if`/`continue` guards, and an early `return`.
 
