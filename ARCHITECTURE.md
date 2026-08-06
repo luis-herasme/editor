@@ -151,6 +151,7 @@ src/
     index.ts           boot: settings → CSS, cable wiring, the first workspace
     workspaces.ts      Workspace store: one Dockview each, the sidebar, the state snapshot
     tabs.ts            Tab store + executeCommand (the consumer), kept behind the bus
+    markdown-tab.ts    a document's pane: the toolbar, the two modes, reload, its links
     rename-dialog.ts   the rename modal
     settings.ts        the current settings: value, persistence, hand-off to CSS
     settings-dialog.ts the settings modal; controls are Command sources

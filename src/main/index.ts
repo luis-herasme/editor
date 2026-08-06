@@ -33,9 +33,8 @@ function createWindow(): void {
 
   browserWindow.on("closed", killAllShells);
 
-  // The page is the app: letting it navigate would replace the whole UI,
-  // shells and all, with no way back. Links leave through the browser
-  // instead, and the decision stays on this side of the cable.
+  // The page is the app: a navigation would replace the whole UI, shells
+  // and all. Links leave through the browser instead.
   browserWindow.webContents.on("will-navigate", (event, url) => {
     event.preventDefault();
     openExternally(url);
