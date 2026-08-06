@@ -44,6 +44,27 @@ body {
   font: 600 13px var(--ui-font-family);
 }
 
+/* One scrollbar everywhere: a slim square thumb in the theme's grey, on
+   xterm's scrollback, the markdown view, code blocks and the tab strips
+   alike. Styling ::-webkit-scrollbar at all replaces Chromium's own
+   rounded overlay bar, which is the only way to square its corners. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
 #workbench {
   flex: 1;
   display: flex;
@@ -450,23 +471,4 @@ dialog select:focus {
   height: 100%;
   padding: 4px;
   box-sizing: border-box;
-}
-
-/* slim translucent thumb over xterm's scrollback, like a macOS overlay
-   scrollbar */
-.xterm-viewport::-webkit-scrollbar {
-  width: 6px;
-}
-
-.xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 3px;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
 }
