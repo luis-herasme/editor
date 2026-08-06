@@ -90,4 +90,5 @@ export const DEFAULT_SETTINGS = {
   fontFamily: "Menlo, monospace",
   fontSize: 13,
   uiFontFamily: "system-ui",
+  sidebarWidth: 160,
 } satisfies Settings & { theme: ThemeName };

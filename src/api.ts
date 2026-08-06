@@ -59,6 +59,7 @@ export interface Settings {
   fontFamily: string;
   fontSize: number;
   uiFontFamily: string;
+  sidebarWidth: number; // pixels; the sidebar's drag handle is its UI
 }
 
 export interface TabInfo {

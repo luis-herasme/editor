@@ -148,6 +148,7 @@ src/
     rename-dialog.ts   the rename modal
     settings.ts        the current settings: value, persistence, hand-off to CSS
     settings-dialog.ts the settings modal; controls are Command sources
+    sidebar-resize.ts  the sidebar's drag handle; a drag ends as one Command
     markdown.ts        GitHub-look rendering (markdown-it + DOMPurify)
     markdown-links.ts  the terminal link provider: Cmd+click a *.md path
     dom.ts             requireElement: strict lookups of index.html's fixed elements
@@ -360,6 +361,25 @@ change it and update this list.
   non-default theme; a config file would fix this if one ever lands),
   and a second app instance finds the storage locked, so settings.ts
   treats persistence as best-effort rather than crashing.
+- **The sidebar's width is a setting, dragged rather than typed.**
+  (Decided 2026-08, when the sidebar grew from an icon strip to a named
+  workspace list.) `sidebarWidth` joins the other settings, so it is
+  validated and clamped by the same schema, persisted by the same
+  localStorage write, and pushed to CSS as `--sidebar-width` like every
+  other value; the settings dialog gets no control, because the drag
+  handle *is* its UI. A drag issues exactly one `update-settings` Command,
+  on release: the pixels moving under the cursor are a preview, the same
+  status a split's divider has, and a Command per mousemove would put a
+  hundred `settings-changed` Events on the bus for one gesture. The handle
+  is a 5px strip positioned over the sidebar's border rather than a column
+  of its own, so widening the grab area costs the layout nothing, and it
+  lights up as a hairline. Mid-drag the pane area takes
+  `pointer-events: none`, or crossing a terminal would start a text
+  selection under the cursor. Implementation note worth keeping: this uses
+  document-level mousemove/mouseup listeners in the capture phase (xterm
+  handles mouse events on the way down) rather than `setPointerCapture`,
+  which reads better but cannot be driven by `webContents.sendInputEvent`,
+  so the harness could not verify it.
 - **Validation is declared, not hand-rolled: zod.** (Decided 2026-08,
   refining the settings decision.) The settings gate began as a chain of
   `typeof` checks: schema validation written by hand. zod states the

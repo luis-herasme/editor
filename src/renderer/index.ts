@@ -3,6 +3,7 @@ import { applyCssVariables } from "./settings.js";
 import { executeCommand, handleShellData, removeTab } from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
 import "./settings-dialog.js";
+import "./sidebar-resize.js";
 
 applyCssVariables();
 

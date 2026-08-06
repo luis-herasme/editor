@@ -69,12 +69,45 @@ body {
   flex: 1;
   display: flex;
   min-height: 0; /* a flex child refuses to shrink below its content */
+  position: relative; /* the resizer is placed against this box */
+}
+
+/* Rides over the sidebar's edge instead of taking a column of its own, so
+   widening it costs the layout nothing. --sidebar-width is a setting
+   (settings.ts); the drag writes it live and commits on release. */
+#sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-width) - 2px);
+  width: 5px;
+  z-index: 2; /* over Dockview's own chrome */
+  cursor: col-resize;
+}
+
+/* the strip is a 5px hit area; what lights up is a hairline over the
+   sidebar's own border, so grabbing it costs no width */
+#sidebar-resizer:hover::after,
+#sidebar-resizer.dragging::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+  background: var(--accent);
+}
+
+/* mid-drag the panes ignore the pointer, so crossing a terminal doesn't
+   start a text selection under the cursor */
+body.resizing #layout {
+  pointer-events: none;
 }
 
 /* The named workspace list at the top, settings gear at the bottom */
 #sidebar {
   flex: none;
-  width: 160px;
+  width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
   padding: 8px 0;

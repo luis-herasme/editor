@@ -6,6 +6,10 @@ import type { Settings } from "../api.js";
 
 const STORAGE_KEY = "settings";
 
+// the drag preview clamps to the same bounds this file corrects to
+export const MIN_SIDEBAR_WIDTH_PX = 120;
+export const MAX_SIDEBAR_WIDTH_PX = 400;
+
 // THEMES has literal keys; lookups use user-supplied strings
 const themesByName: Record<string, Theme> = THEMES;
 
@@ -26,6 +30,15 @@ const settingsSchema = z
       .number()
       .transform((size) => Math.min(32, Math.max(8, Math.round(size))))
       .catch(DEFAULT_SETTINGS.fontSize),
+    sidebarWidth: z
+      .number()
+      .transform((width) =>
+        Math.min(
+          MAX_SIDEBAR_WIDTH_PX,
+          Math.max(MIN_SIDEBAR_WIDTH_PX, Math.round(width)),
+        ),
+      )
+      .catch(DEFAULT_SETTINGS.sidebarWidth),
   })
   .catch({ ...DEFAULT_SETTINGS });
 
@@ -72,6 +85,11 @@ export function applyCssVariables(): void {
       "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
     document.documentElement.style.setProperty(cssName, String(value));
   }
+  // set apart from the loop: a length needs its unit, the others don't
+  document.documentElement.style.setProperty(
+    "--sidebar-width",
+    `${settings.sidebarWidth}px`,
+  );
   let highlightFile = "vs.min.css";
   if (currentTheme().colorScheme === "dark") {
     highlightFile = "vs2015.min.css";
