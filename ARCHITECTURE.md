@@ -381,19 +381,23 @@ change it and update this list.
   `open-markdown` Command, the same door every gesture uses. Rendering is
   markdown-it (GFM task lists are a small DOM pass of our own; the
   plugin for them ships no browser build), sanitized by DOMPurify because
-  Markdown may embed raw HTML, and styled by github-markdown-css: GitHub's
-  own extracted stylesheet, its dark or light file swapped by settings.ts
-  to follow the theme. The view element itself wears `.markdown-body`,
-  and the document surface is overridden to the editor's own background,
-  so a markdown pane sits flush with the rest of the window.
+  Markdown may embed raw HTML, and styled by our own rules in style.css:
+  GitHub's *layout* (headings, tables, task lists, spacing) but the
+  editor's palette, every surface derived from the theme variables.
+  (github-markdown-css was tried first and removed: its hardcoded GitHub
+  colors could never sit flush with the editor's background.)
   The markdown libraries are imported as their self-contained browser ESM
   bundles, by path like zod, not as classic-script globals; the two
   bundles without adjacent declaration files borrow their types from the
-  packages' normal entries via an annotated const. As on GitHub, a ```mermaid fence becomes a drawn
-  diagram (the mermaid library, themed to match, its own strict
-  sanitizer on); a fence that doesn't parse stays visible as code. By
-  far our heaviest dependency; if startup ever drags, defer its script
-  until the first diagram. The renderer can't read the disk, so the bridge
+  packages' normal entries via an annotated const. A ```mermaid fence
+  becomes a drawn diagram (mermaid's "base" theme fed our palette via
+  themeVariables, its own strict sanitizer on); a fence that doesn't
+  parse stays visible as code. By far our heaviest dependency; if startup
+  ever drags, defer its script until the first diagram. Other fences are
+  colored by highlight.js through markdown-it's `highlight` hook, in VS
+  Code's dark palette (hljs's vs2015 theme; vs for light themes); its
+  browser ESM build lives in @highlightjs/cdn-assets, the main package
+  being CommonJS-only and kept as a dev dependency for its types. The renderer can't read the disk, so the bridge
   grew its first request/response pair, `readFile`: main reads the file
   (capped at 5MB) and resolves a relative path against the clicking tab's
   shell cwd, asked of the OS at click time (lsof on the PTY's pid), so no

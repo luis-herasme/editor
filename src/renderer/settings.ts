@@ -83,12 +83,16 @@ export function applyCssVariables(): void {
       "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
     document.documentElement.style.setProperty(cssName, String(value));
   }
-  // github-markdown-css ships separate dark/light files; point the single
-  // link at the matching one. An href swap, not disabled-toggling: a link
+  // Code token colors ship as separate dark/light files (VS Code's dark
+  // palette, VS light). An href swap, not disabled-toggling: a link
   // enabled while still loading re-enables itself when the load ends.
-  const markdownCss = requireElement("markdown-css", HTMLLinkElement);
-  const variantHref = `../../node_modules/github-markdown-css/github-markdown-${currentTheme().colorScheme}.css`;
-  if (markdownCss.getAttribute("href") !== variantHref) {
-    markdownCss.setAttribute("href", variantHref);
+  let highlightFile = "vs.min.css";
+  if (currentTheme().colorScheme === "dark") {
+    highlightFile = "vs2015.min.css";
+  }
+  const highlightHref = `../../node_modules/@highlightjs/cdn-assets/styles/${highlightFile}`;
+  const highlightCss = requireElement("highlight-css", HTMLLinkElement);
+  if (highlightCss.getAttribute("href") !== highlightHref) {
+    highlightCss.setAttribute("href", highlightHref);
   }
 }

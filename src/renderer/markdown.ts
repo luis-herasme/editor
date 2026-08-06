@@ -4,7 +4,7 @@
 // fences. All three are imported as their self-contained browser ESM
 // bundles, by path like zod: no bundler, and bare names mean nothing to
 // the browser.
-import { currentTheme } from "./settings.js";
+import { currentTheme, getSettings } from "./settings.js";
 import DOMPurify from "../../node_modules/dompurify/dist/purify.es.mjs";
 // these two bundles ship no declaration files; their types come from the
 // packages' normal entries, joined to the value by an annotated const
@@ -16,17 +16,29 @@ import type mermaidModule from "mermaid";
 // @ts-expect-error no declaration file next to the browser bundle
 import mermaidUntyped from "../../node_modules/mermaid/dist/mermaid.esm.min.mjs";
 const mermaid: typeof mermaidModule = mermaidUntyped;
+// highlight.js publishes its browser ESM bundle in @highlightjs/cdn-assets
+// (the main package is CommonJS-only, kept as a dev dependency for types)
+import type hljsModule from "highlight.js";
+// @ts-expect-error no declaration file next to the browser bundle
+import hljsUntyped from "../../node_modules/@highlightjs/cdn-assets/es/highlight.min.js";
+const hljs: typeof hljsModule = hljsUntyped;
 
 const parser = new markdownit({
   html: true, // embedded HTML is allowed in, DOMPurify guards it below
   linkify: true,
+  // GitHub colors code fences; hljs emits the token spans, the github
+  // theme stylesheet colors them. Unknown languages stay escaped text.
+  highlight: (code, language) => {
+    if (language !== "" && hljs.getLanguage(language) !== undefined) {
+      return hljs.highlight(code, { language }).value;
+    }
+    return "";
+  },
 });
 
 export function renderMarkdown(markdown: string): HTMLElement {
   const view = document.createElement("article");
-  // one element wearing both classes: markdown-body paints GitHub's
-  // canvas color, so the whole pane matches instead of framing a card
-  view.className = "markdown-view markdown-body";
+  view.className = "markdown-view";
   view.tabIndex = -1; // focusable, so keyboard scrolling works
   view.innerHTML = DOMPurify.sanitize(parser.render(markdown));
   renderTaskLists(view);
@@ -34,9 +46,9 @@ export function renderMarkdown(markdown: string): HTMLElement {
   return view;
 }
 
-// GFM task lists in GitHub's markup. markdown-it core leaves "[ ] " as
-// text; this swaps it for the disabled checkbox github-markdown-css
-// expects (.task-list-item). A loose list wraps the item text in a <p>.
+// GFM task lists. markdown-it core leaves "[ ] " as text; this swaps it
+// for a disabled checkbox (GitHub's .task-list-item markup, styled in
+// style.css). A loose list wraps the item text in a <p>.
 function renderTaskLists(view: HTMLElement): void {
   for (const item of view.querySelectorAll("li")) {
     let textNode = item.firstChild;
@@ -78,15 +90,26 @@ async function renderMermaidDiagrams(view: HTMLElement): Promise<void> {
   if (fences.length === 0) {
     return;
   }
-  let theme: "default" | "dark" = "default";
-  if (currentTheme().colorScheme === "dark") {
-    theme = "dark";
-  }
-  // per batch, not once: a view opened after a theme switch matches it
+  // Diagrams draw with the editor's own palette: mermaid's "base" theme
+  // exists to take variables. Per batch, not once: a view opened after a
+  // theme switch matches it.
+  const theme = currentTheme();
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "strict",
-    theme,
+    theme: "base",
+    themeVariables: {
+      darkMode: theme.colorScheme === "dark",
+      background: theme.background,
+      primaryColor: theme.tabBarBackground,
+      primaryTextColor: theme.tabActiveForeground,
+      primaryBorderColor: theme.separator,
+      secondaryColor: theme.tabBarBackground,
+      tertiaryColor: theme.background,
+      lineColor: theme.tabForeground,
+      edgeLabelBackground: theme.background,
+      fontFamily: getSettings().uiFontFamily,
+    },
   });
   for (const fence of fences) {
     const source = fence.textContent;

@@ -245,24 +245,149 @@ dialog select:focus {
 
 /* ---------- Markdown view ---------- */
 
-/* The element also wears .markdown-body so github-markdown-css styles
-   the content; the padding formula centers it at GitHub's reading width */
+/* GitHub's layout, our palette: every surface derives from the theme.
+   The padding formula centers content at a reading width, full-bleed
+   background. */
 .markdown-view {
   height: 100%;
   overflow: auto;
   box-sizing: border-box;
   outline: none;
   padding: 24px max(32px, calc((100% - 880px) / 2));
+  background: var(--background);
+  color: var(--tab-active-foreground);
+  font-family: var(--ui-font-family);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: break-word;
 }
 
-/* The document surface follows the editor's theme, not GitHub's own
-   canvas color. Both classes: github-markdown-css loads after this file,
-   so one class would tie and lose */
-.markdown-view.markdown-body {
-  background-color: var(--background);
+.markdown-view > :first-child {
+  margin-top: 0;
 }
 
-/* GitHub centers rendered diagrams */
+.markdown-view h1,
+.markdown-view h2,
+.markdown-view h3,
+.markdown-view h4,
+.markdown-view h5,
+.markdown-view h6 {
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-view h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--separator);
+}
+
+.markdown-view h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--separator);
+}
+
+.markdown-view h3 {
+  font-size: 1.25em;
+}
+
+.markdown-view p,
+.markdown-view ul,
+.markdown-view ol,
+.markdown-view table,
+.markdown-view pre,
+.markdown-view blockquote {
+  margin: 0 0 16px;
+}
+
+.markdown-view ul,
+.markdown-view ol {
+  padding-left: 2em;
+}
+
+.markdown-view li + li {
+  margin-top: 0.25em;
+}
+
+.markdown-view a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.markdown-view a:hover {
+  text-decoration: underline;
+}
+
+/* code in the terminal's font; the token colors come from the highlight
+   stylesheet (VS Code's dark palette) */
+.markdown-view code {
+  font-family: var(--font-family);
+  font-size: 85%;
+  background: var(--tab-bar-background);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+}
+
+.markdown-view pre {
+  background: var(--tab-bar-background);
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+.markdown-view pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-view blockquote {
+  padding: 0 1em;
+  color: var(--tab-foreground);
+  border-left: 4px solid var(--separator);
+}
+
+.markdown-view table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  width: max-content;
+  overflow-x: auto;
+}
+
+.markdown-view th,
+.markdown-view td {
+  border: 1px solid var(--separator);
+  padding: 6px 13px;
+}
+
+.markdown-view th {
+  background: var(--tab-bar-background);
+  font-weight: 600;
+}
+
+.markdown-view hr {
+  border: 0;
+  height: 1px;
+  background: var(--separator);
+  margin: 24px 0;
+}
+
+.markdown-view img {
+  max-width: 100%;
+}
+
+.markdown-view .task-list-item {
+  list-style: none;
+}
+
+.markdown-view .task-list-item-checkbox {
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+
 .markdown-view .mermaid-diagram {
   display: flex;
   justify-content: center;
