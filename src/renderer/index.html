@@ -27,7 +27,8 @@
          text-input dialog. -->
     <dialog id="rename-dialog">
       <form method="dialog">
-        <h2>Rename Tab</h2>
+        <!-- the heading names the target: a tab or a workspace -->
+        <h2 id="rename-heading">Rename Tab</h2>
         <input id="rename-input" type="text" spellcheck="false" />
         <div class="dialog-buttons">
           <!-- Cancel is type=button so Enter always means Rename -->
@@ -62,11 +63,17 @@
     </dialog>
     <!-- The painted title bar (style.css); the native one is hidden -->
     <div id="title-bar">Terminal</div>
-    <div id="workspace">
+    <div id="workbench">
       <div id="sidebar">
+        <!-- one button per workspace, filled by workspaces.ts -->
+        <div id="workspace-list"></div>
+        <button id="new-workspace-button" title="New Workspace (⇧⌘T)">
+          + New Workspace
+        </button>
         <button id="settings-button" title="Settings">⚙</button>
       </div>
-      <!-- Dockview renders the tab strips and panes in here (tabs.ts) -->
+      <!-- one Dockview root per workspace, only the active one displayed
+           (workspaces.ts) -->
       <div id="layout"></div>
     </div>
     <!-- classic scripts providing globals (how these packages ship);

@@ -1,0 +1,528 @@
+// One workspace = one Dockview instance = one pane layout with its own
+// tabs. Only the active one is displayed; the others keep their terminals
+// and their shells alive off screen.
+import { executeCommand, focusActiveTab } from "./tabs.js";
+import type { Tab } from "./tabs.js";
+import type {
+  EditorState,
+  LayoutNode,
+  TabInfo,
+  WorkspaceInfo,
+} from "../api.js";
+import type {
+  AddPanelPositionOptions,
+  DockviewComponent,
+  DockviewGroupPanel,
+  IDockviewPanel,
+  SerializedDockview,
+} from "dockview";
+import { requireElement } from "./dom.js";
+
+type SerializedGridNode = SerializedDockview["grid"]["root"];
+type SerializedGroup = Exclude<SerializedGridNode["data"], unknown[]>;
+
+declare global {
+  interface Window {
+    dockview: typeof import("dockview");
+  }
+}
+
+export interface Workspace {
+  id: number;
+  name: string;
+  element: HTMLElement; // its Dockview root, hidden unless active
+  buttonElement: HTMLElement; // its entry in the sidebar
+  dockview: DockviewComponent;
+  tabs: Map<number, Tab>;
+  activeId: number;
+}
+
+export const workspaces = new Map<number, Workspace>();
+
+// live binding: importers read the current value, so no getter is needed
+export let activeWorkspace: Workspace | undefined;
+
+let nextWorkspaceId = 1;
+
+const titleBarElement = requireElement("title-bar");
+const layoutElement = requireElement("layout");
+const workspaceListElement = requireElement("workspace-list");
+
+const dockviewLibrary = window.dockview;
+
+// The element a panel shows is built by the caller of addPanel; Dockview's
+// factories only ever hand it over.
+let handOffPaneElement: HTMLElement | undefined;
+let handOffTabElement: HTMLElement | undefined;
+
+// One options object for every instance: a workspace's identity lives in
+// its own store entry, never in the layout engine's configuration.
+const DOCKVIEW_OPTIONS = {
+  theme: dockviewLibrary.themeDark,
+  disableFloatingGroups: true,
+  disableTabsOverflowList: true,
+  createComponent: () => {
+    const element = handOffPaneElement;
+    handOffPaneElement = undefined;
+    if (!element) {
+      throw new Error("Panels are only added by addPanel");
+    }
+    return {
+      element,
+      init: () => {},
+    };
+  },
+  createTabComponent: () => {
+    const element = handOffTabElement;
+    handOffTabElement = undefined;
+    if (!element) {
+      throw new Error("Tabs are only added by addPanel");
+    }
+    return {
+      element,
+      init: () => {},
+    };
+  },
+  createRightHeaderActionComponent: (group: DockviewGroupPanel) => {
+    const button = document.createElement("button");
+    button.className = "new-tab";
+    button.title = "New Tab (⌘T)";
+    button.textContent = "+";
+    button.addEventListener("click", () => {
+      executeCommand({
+        type: "new-tab",
+        groupId: group.id,
+      });
+    });
+    return {
+      element: button,
+      init: () => {},
+      dispose: () => {},
+    };
+  },
+};
+
+export function createWorkspace(): Workspace {
+  const id = nextWorkspaceId++;
+
+  const element = document.createElement("div");
+  element.className = "workspace-layout";
+  element.style.display = "none";
+  layoutElement.append(element);
+
+  const buttonElement = document.createElement("button");
+  buttonElement.className = "workspace-button";
+  buttonElement.addEventListener("click", () => {
+    executeCommand({
+      type: "activate-workspace",
+      id,
+    });
+  });
+  buttonElement.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    window.bridge.showWorkspaceMenu(id);
+  });
+  workspaceListElement.append(buttonElement);
+
+  const workspace: Workspace = {
+    id,
+    name: `Workspace ${id}`,
+    element,
+    buttonElement,
+    dockview: new dockviewLibrary.DockviewComponent(element, DOCKVIEW_OPTIONS),
+    tabs: new Map(),
+    activeId: -1,
+  };
+  workspaces.set(id, workspace);
+  buttonElement.textContent = workspace.name;
+  buttonElement.title = workspace.name;
+
+  // Drag-and-drop interception: cancel the drop, re-issue it as a Command,
+  // and let the consumer perform the identical move.
+  workspace.dockview.api.onWillDrop((event) => {
+    event.preventDefault();
+    const data = event.getData();
+    if (!data || data.panelId === null) {
+      return;
+    }
+    const tabId = Number(data.panelId);
+    const group = event.group;
+    if (!group) {
+      return;
+    }
+    if (event.kind === "tab" || event.kind === "header_space") {
+      let index = group.panels.length;
+      if (event.panel) {
+        index = group.panels.indexOf(event.panel);
+      }
+      executeCommand({
+        type: "move-tab",
+        id: tabId,
+        groupId: group.id,
+        index,
+      });
+      return;
+    }
+    if (event.position === "center") {
+      if (data.groupId === group.id) {
+        return;
+      }
+      executeCommand({
+        type: "move-tab",
+        id: tabId,
+        groupId: group.id,
+        index: group.panels.length,
+      });
+      return;
+    }
+    executeCommand({
+      type: "split-tab",
+      id: tabId,
+      targetGroupId: group.id,
+      side: event.position,
+    });
+  });
+
+  workspace.dockview.api.onWillShowOverlay((event) => {
+    if (event.kind === "edge") {
+      event.preventDefault();
+    }
+  });
+
+  workspace.dockview.api.onWillDragGroup((event) => {
+    event.nativeEvent.preventDefault();
+  });
+
+  // Activation is applied by Dockview first, announced afterwards: blocking
+  // the click would also block the drag that starts on the same mousedown.
+  workspace.dockview.api.onDidActivePanelChange((event) => {
+    if (!event.panel) {
+      return;
+    }
+    const tabId = Number(event.panel.id);
+    if (tabId === workspace.activeId) {
+      return;
+    }
+    workspace.activeId = tabId;
+    focusActiveTab();
+    window.bridge.emitEvent({
+      type: "tab-activated",
+      id: tabId,
+      state: snapshot(),
+    });
+  });
+
+  return workspace;
+}
+
+export function activateWorkspace(workspace: Workspace): void {
+  if (activeWorkspace) {
+    activeWorkspace.element.style.display = "none";
+    activeWorkspace.buttonElement.classList.remove("active");
+  }
+  activeWorkspace = workspace;
+  workspace.element.style.display = "";
+  workspace.buttonElement.classList.add("active");
+  titleBarElement.textContent = workspace.name;
+  // Dockview measured its container while it was hidden, so it holds a zero
+  // size; hand it the real one back.
+  workspace.dockview.layout(
+    workspace.element.clientWidth,
+    workspace.element.clientHeight,
+  );
+  // Terminals skip fitting while their workspace is hidden (a zero box would
+  // resize the shell to nothing), so re-fit them against the boxes they just
+  // got back.
+  for (const tab of workspace.tabs.values()) {
+    if (tab.kind !== "terminal") {
+      continue;
+    }
+    tab.fitAddon.fit();
+  }
+  focusActiveTab();
+}
+
+export function removeWorkspace(workspace: Workspace): void {
+  for (const [tabId, tab] of workspace.tabs) {
+    if (tab.kind !== "terminal") {
+      continue;
+    }
+    window.bridge.killShell(tabId);
+    tab.observer.disconnect();
+    tab.terminal.dispose();
+  }
+  workspaces.delete(workspace.id);
+  workspace.dockview.dispose();
+  workspace.element.remove();
+  workspace.buttonElement.remove();
+  if (activeWorkspace !== workspace) {
+    return;
+  }
+  activeWorkspace = undefined;
+  for (const remaining of workspaces.values()) {
+    activateWorkspace(remaining);
+    return;
+  }
+}
+
+type SetWorkspaceNameOptions = {
+  workspace: Workspace;
+  name: string;
+};
+
+export function setWorkspaceName({
+  workspace,
+  name,
+}: SetWorkspaceNameOptions): void {
+  workspace.name = name;
+  workspace.buttonElement.textContent = name;
+  // the row ellipsizes a long name; the tooltip always has it whole
+  workspace.buttonElement.title = name;
+  if (workspace === activeWorkspace) {
+    titleBarElement.textContent = name;
+  }
+}
+
+type FoundTab = {
+  workspace: Workspace;
+  tab: Tab;
+};
+
+// Tab ids are unique across workspaces (main keys its shells by them), so a
+// background workspace's shell can still find its tab.
+export function findTab(id: number): FoundTab | undefined {
+  for (const workspace of workspaces.values()) {
+    const tab = workspace.tabs.get(id);
+    if (tab) {
+      return {
+        workspace,
+        tab,
+      };
+    }
+  }
+  return undefined;
+}
+
+type FindGroupOptions = {
+  workspace: Workspace;
+  groupId: string;
+};
+
+export function findGroup({
+  workspace,
+  groupId,
+}: FindGroupOptions): DockviewGroupPanel | undefined {
+  for (const group of workspace.dockview.api.groups) {
+    if (group.id === groupId) {
+      return group;
+    }
+  }
+  return undefined;
+}
+
+type AddPanelOptions = {
+  workspace: Workspace;
+  id: number;
+  component: "terminal" | "markdown";
+  title: string;
+  paneElement: HTMLElement;
+  tabElement: HTMLElement;
+  group: DockviewGroupPanel | undefined;
+};
+
+export function addPanel({
+  workspace,
+  id,
+  component,
+  title,
+  paneElement,
+  tabElement,
+  group,
+}: AddPanelOptions): IDockviewPanel {
+  handOffPaneElement = paneElement;
+  handOffTabElement = tabElement;
+  let position: AddPanelPositionOptions | undefined;
+  if (group !== undefined) {
+    position = { referenceGroup: group };
+  }
+  return workspace.dockview.api.addPanel({
+    id: String(id),
+    component,
+    tabComponent: `${component}-tab`,
+    title,
+    inactive: true,
+    position,
+  });
+}
+
+layoutElement.addEventListener("dblclick", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  const tabElement = target.closest(".tab");
+  if (tabElement instanceof HTMLElement && tabElement.dataset.tabId) {
+    executeCommand({
+      type: "toggle-maximize",
+      id: Number(tabElement.dataset.tabId),
+    });
+    return;
+  }
+  if (!target.closest(".dv-void-container") || !activeWorkspace) {
+    return;
+  }
+  for (const group of activeWorkspace.dockview.api.groups) {
+    if (group.element.contains(target)) {
+      executeCommand({
+        type: "new-tab",
+        groupId: group.id,
+      });
+      return;
+    }
+  }
+});
+
+layoutElement.addEventListener("mousedown", () => {
+  setTimeout(focusActiveTab, 0);
+});
+
+requireElement("new-workspace-button").addEventListener("click", () => {
+  executeCommand({ type: "new-workspace" });
+});
+
+type BuildLayoutOptions = {
+  workspace: Workspace;
+  node: SerializedGridNode;
+  direction: "row" | "column";
+};
+
+function buildLayout({
+  workspace,
+  node,
+  direction,
+}: BuildLayoutOptions): LayoutNode {
+  const data = node.data;
+  if (!Array.isArray(data)) {
+    const serializedGroup: SerializedGroup = data;
+    const tabList: TabInfo[] = [];
+    for (const panelId of serializedGroup.views) {
+      const tab = workspace.tabs.get(Number(panelId));
+      if (!tab) {
+        continue;
+      }
+      let title = tab.titleElement.textContent;
+      if (title === null) {
+        title = "";
+      }
+      tabList.push({
+        id: Number(panelId),
+        title,
+        kind: tab.kind,
+      });
+    }
+    return {
+      type: "group",
+      group: {
+        id: serializedGroup.id,
+        tabs: tabList,
+      },
+    };
+  }
+  let childDirection: "row" | "column" = "row";
+  if (direction === "row") {
+    childDirection = "column";
+  }
+  const children: LayoutNode[] = [];
+  for (const child of data) {
+    children.push(
+      buildLayout({
+        workspace,
+        node: child,
+        direction: childDirection,
+      }),
+    );
+  }
+  return {
+    type: "split",
+    direction,
+    children,
+  };
+}
+
+type CollectTabsOptions = {
+  node: LayoutNode;
+  into: TabInfo[];
+};
+
+function collectTabs({ node, into }: CollectTabsOptions): void {
+  if (node.type === "group") {
+    for (const tab of node.group.tabs) {
+      into.push(tab);
+    }
+    return;
+  }
+  for (const child of node.children) {
+    collectTabs({
+      node: child,
+      into,
+    });
+  }
+}
+
+function describeWorkspace(workspace: Workspace): WorkspaceInfo {
+  let maximizedGroupId: string | null = null;
+  for (const group of workspace.dockview.api.groups) {
+    if (group.api.isMaximized()) {
+      maximizedGroupId = group.id;
+      break;
+    }
+  }
+  if (workspace.dockview.api.panels.length === 0) {
+    return {
+      id: workspace.id,
+      name: workspace.name,
+      tabs: [],
+      layout: null,
+      activeId: workspace.activeId,
+      maximizedGroupId,
+    };
+  }
+  const serialized = workspace.dockview.api.toJSON();
+  let rootDirection: "row" | "column" = "column";
+  if (serialized.grid.orientation === dockviewLibrary.Orientation.HORIZONTAL) {
+    rootDirection = "row";
+  }
+  const layout = buildLayout({
+    workspace,
+    node: serialized.grid.root,
+    direction: rootDirection,
+  });
+  const tabList: TabInfo[] = [];
+  collectTabs({
+    node: layout,
+    into: tabList,
+  });
+  return {
+    id: workspace.id,
+    name: workspace.name,
+    tabs: tabList,
+    layout,
+    activeId: workspace.activeId,
+    maximizedGroupId,
+  };
+}
+
+export function snapshot(): EditorState {
+  const workspaceList: WorkspaceInfo[] = [];
+  for (const workspace of workspaces.values()) {
+    workspaceList.push(describeWorkspace(workspace));
+  }
+  let activeWorkspaceId = -1;
+  if (activeWorkspace) {
+    activeWorkspaceId = activeWorkspace.id;
+  }
+  return {
+    workspaces: workspaceList,
+    activeWorkspaceId,
+  };
+}

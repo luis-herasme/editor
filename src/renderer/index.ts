@@ -9,7 +9,18 @@ applyCssVariables();
 window.bridge.onCommand(executeCommand);
 window.bridge.onShellData(handleShellData);
 window.bridge.onShellExit(removeTab);
-window.bridge.onRenameRequest(openRenameDialog);
+window.bridge.onRenameRequest((id) => {
+  openRenameDialog({
+    kind: "tab",
+    id,
+  });
+});
+window.bridge.onWorkspaceRenameRequest((id) => {
+  openRenameDialog({
+    kind: "workspace",
+    id,
+  });
+});
 
 declare global {
   interface Window {
@@ -18,4 +29,4 @@ declare global {
 }
 window.editor = { command: executeCommand };
 
-executeCommand({ type: "new-tab" });
+executeCommand({ type: "new-workspace" });

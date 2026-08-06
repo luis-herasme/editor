@@ -44,30 +44,32 @@ body {
   font: 600 13px var(--ui-font-family);
 }
 
-#workspace {
+#workbench {
   flex: 1;
   display: flex;
   min-height: 0; /* a flex child refuses to shrink below its content */
 }
 
-/* Global controls, settings gear at the bottom (the activity-bar pattern) */
+/* The named workspace list at the top, settings gear at the bottom */
 #sidebar {
   flex: none;
-  width: 42px;
+  width: 160px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   padding: 8px 0;
   background: var(--tab-bar-background);
   border-right: 1px solid var(--separator);
 }
 
+/* rows, not icons: everything shares the list's left edge. Sizes belong to
+   the rules below; an id-and-type selector here would outrank them. */
 #sidebar button {
   border: none;
   background: transparent;
   color: var(--tab-foreground);
-  font-size: 18px;
-  padding: 4px;
+  padding: 4px 12px;
+  text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -77,10 +79,54 @@ body {
 
 #settings-button {
   margin-top: auto;
+  font-size: 18px;
 }
 
-/* Dockview's root: tab strips and panes */
+#workspace-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* one full-width row per workspace, showing its whole name */
+#sidebar .workspace-button {
+  position: relative;
+  padding: 5px 12px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the active row shares the terminal's background, so it reads as the
+   surface the panes belong to */
+#sidebar .workspace-button.active {
+  color: var(--tab-active-foreground);
+  background: var(--background);
+}
+
+#sidebar .workspace-button.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+#new-workspace-button {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* holds one Dockview root per workspace; the inactive ones are display:none */
 #layout {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.workspace-layout {
   flex: 1;
   min-width: 0;
 }

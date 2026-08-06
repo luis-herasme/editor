@@ -1,4 +1,5 @@
 import { executeCommand, getTabTitle, focusActiveTab } from "./tabs.js";
+import { workspaces } from "./workspaces.js";
 import { requireElement } from "./dom.js";
 
 const dialogElement = requireElement("rename-dialog");
@@ -11,17 +12,37 @@ if (!(inputElement instanceof HTMLInputElement)) {
   throw new Error("#rename-input is not an <input>");
 }
 const input: HTMLInputElement = inputElement;
+const heading = requireElement("rename-heading");
 
-let targetId = -1;
+type RenameTarget = {
+  kind: "tab" | "workspace";
+  id: number;
+};
 
-export function openRenameDialog(id: number): void {
-  const title = getTabTitle(id);
-  if (title === undefined) {
+let target: RenameTarget = {
+  kind: "tab",
+  id: -1,
+};
+
+export function openRenameDialog({ kind, id }: RenameTarget): void {
+  let currentName: string | undefined;
+  if (kind === "tab") {
+    heading.textContent = "Rename Tab";
+    currentName = getTabTitle(id);
+  }
+  if (kind === "workspace") {
+    heading.textContent = "Rename Workspace";
+    currentName = workspaces.get(id)?.name;
+  }
+  if (currentName === undefined) {
     return;
   }
-  targetId = id;
+  target = {
+    kind,
+    id,
+  };
   dialog.returnValue = "";
-  input.value = title;
+  input.value = currentName;
   dialog.showModal();
   input.select();
 }
@@ -32,11 +53,20 @@ requireElement("rename-cancel").addEventListener("click", () => {
 
 dialog.addEventListener("close", () => {
   if (dialog.returnValue === "rename") {
-    executeCommand({
-      type: "set-tab-title",
-      id: targetId,
-      title: input.value.trim(),
-    });
+    if (target.kind === "tab") {
+      executeCommand({
+        type: "set-tab-title",
+        id: target.id,
+        title: input.value.trim(),
+      });
+    }
+    if (target.kind === "workspace") {
+      executeCommand({
+        type: "rename-workspace",
+        id: target.id,
+        name: input.value.trim(),
+      });
+    }
   }
   focusActiveTab();
 });

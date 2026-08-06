@@ -61,6 +61,8 @@ onCommand(callback)          main → renderer   "execute this Command" (see bel
 emitEvent(event)             renderer → main   "this Event just happened" (see below)
 showTabMenu(id)              renderer → main   "right-click on tab `id`: show its native menu"
 onRenameRequest((id))        main → renderer   "the user picked Rename in tab `id`'s menu"
+showWorkspaceMenu(id)        renderer → main   "right-click on workspace `id`: show its native menu"
+onWorkspaceRenameRequest((id)) main → renderer "the user picked Rename in workspace `id`'s menu"
 readFile({path, baseTabId})  renderer → main   "read this file for the markdown view" (the one request/response pair)
 ```
 
@@ -108,7 +110,8 @@ can never lag behind the UI.
 
 Two consequences worth naming:
 
-- **Events carry a state snapshot** (`{tabs, layout, activeId}`), so an observer
+- **Events carry a state snapshot** (`{workspaces, activeWorkspaceId}`, each
+  workspace holding its own tabs, layout and active tab), so an observer
   never needs a query protocol: whatever arrives last is the truth. Main
   keeps the latest snapshot as the read model a future server will answer
   from.
@@ -139,8 +142,9 @@ src/
   renderer/
     index.html         the page: title bar, sidebar, the layout root, the modals
     style.css          the page's stylesheet; theme values arrive as custom properties
-    index.ts           boot: settings → CSS, cable wiring, the first tab
-    tabs.ts            Tab store + executeCommand (the consumer) + Dockview, kept behind both
+    index.ts           boot: settings → CSS, cable wiring, the first workspace
+    workspaces.ts      Workspace store: one Dockview each, the sidebar, the state snapshot
+    tabs.ts            Tab store + executeCommand (the consumer), kept behind the bus
     rename-dialog.ts   the rename modal
     settings.ts        the current settings: value, persistence, hand-off to CSS
     settings-dialog.ts the settings modal; controls are Command sources
@@ -300,7 +304,8 @@ change it and update this list.
   `move-tab` Command, and the consumer performs the identical move through
   `panel.api.moveTo()`. A drag therefore enters the editor through the same
   door as a menu click (see "Drag-and-drop interception" in the glossary).
-  Dockview is confined to tabs.ts and index.html; `api.ts`, the bridge, and
+  Dockview is confined to workspaces.ts (which owns the instances) and the
+  few layout calls left in tabs.ts; `api.ts`, the bridge, and
   main know nothing about it, which is what keeps the provider swappable.
   Two costs we accept: clicking a tab is activation (focus, not layout) and
   is applied by Dockview first, announced on the bus afterwards, because
@@ -324,7 +329,8 @@ change it and update this list.
   offers no way to recolor the standard title bar, so the window is
   created with `titleBarStyle: "hiddenInset"`: the traffic lights stay
   native, drawn inset over the page, and the page's own `#title-bar`
-  strip takes over the rest (the theme's color, the centered title, and
+  strip takes over the rest (the theme's color, the centered title, which
+  names the active workspace, and
   `-webkit-app-region: drag`, which keeps the native behaviors: dragging
   moves the window, double-click zooms it; see "Drag region" in the
   glossary). The tab strip stays below the title bar rather than merging
@@ -347,8 +353,8 @@ change it and update this list.
   took, and xterm's options are updated on every live terminal with an
   explicit re-fit (a font change alters the cell size without touching
   any pane's box, so the ResizeObservers stay silent). The entry point
-  is a sidebar, a vertical strip on the left, VS Code's activity-bar
-  pattern, holding only the settings gear for now. Costs we accept:
+  is a sidebar, a strip on the left, holding only the settings gear at the
+  time (workspaces later filled the rest of it). Costs we accept:
   main can't read localStorage at window-creation time, so the pre-paint
   window color is the default theme's (one wrong-colored frame on a
   non-default theme; a config file would fix this if one ever lands),
@@ -408,6 +414,37 @@ change it and update this list.
   tool; revisit before any remote surface exists), the last *shell*
   exiting still closes the window even if markdown tabs remain, and the
   wrapped-row index math assumes single-width characters.
+- **Workspaces: one Dockview instance each, all alive at once.** (Decided
+  2026-08.) A workspace is a whole editor of its own inside the window: its
+  own pane layout, its own tabs, its own shells (see the glossary). The
+  sidebar, which held only the settings gear, becomes their list: one row
+  per workspace carrying its whole name, the active one accented, the gear
+  pushed to the bottom. Names, not numbers, because the name is the
+  workspace's identity: a numbered strip made a rename invisible in the one
+  place you pick a workspace from. The
+  mechanic is the cheapest one that preserves state: instead of serializing
+  a layout and rebuilding it on every switch (which would recreate every
+  xterm.js instance and lose scrollback, cursor and running program), each
+  workspace gets its own Dockview instance in its own div, and switching is
+  `display: none` on one and the theme's background on the other. The
+  workspaces behind stay live: a build left compiling keeps compiling. Tab
+  ids stay unique across workspaces, so main's `Map<id, pty>`, `readFile`
+  and the OSC title path needed no change at all; this shipped as a pure bus
+  change (`new-workspace`, `close-workspace`, `activate-workspace`,
+  `rename-workspace`, four matching Events) plus one new IPC pair for the
+  workspace context menu, which is the tab-menu pattern repeated.
+  `EditorState` grew a level to match the model: `{workspaces,
+  activeWorkspaceId}`, each workspace carrying the tabs/layout/activeId
+  that used to sit at the top. Costs we accept: a hidden element measures
+  zero, so terminals skip fitting while their workspace is away and re-fit
+  on the way back (and Dockview is handed its container size explicitly on
+  activation, since it measured zero too); group ids are unique per
+  workspace only, so a Command naming a group is resolved inside the
+  workspace it belongs to; closing a workspace kills its shells, which can
+  trip main's "last shell exiting closes the window" rule even when another
+  workspace is still open (the same soft spot markdown tabs already have);
+  and workspaces are in-memory, so a restart is back to one, as it is for
+  tabs.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
@@ -442,7 +479,9 @@ A quick map so features land on the right side of the cable:
   openvscode-server landed on). Splits proved the tier system: they
   shipped as a bus change (`split-tab`, `EditorState.layout`) with zero
   IPC change, because each split's terminal reuses the per-tab shell
-  machinery unchanged.
+  machinery unchanged. Workspaces proved it again at a larger size: a whole
+  second editor inside the window cost four Commands and no shell-protocol
+  change, because tab ids were already the only thing main knew about.
 
 The rule of thumb: protocol changes get a moment of planning in this doc
 *before* the code is written; the other two kinds can just be built.

@@ -19,6 +19,17 @@ export function installAppMenu(): void {
             accelerator: "CmdOrCtrl+W",
             click: () => dispatch({ type: "close-tab" }),
           },
+          { type: "separator" },
+          {
+            label: "New Workspace",
+            accelerator: "Shift+CmdOrCtrl+T",
+            click: () => dispatch({ type: "new-workspace" }),
+          },
+          {
+            label: "Close Workspace",
+            accelerator: "Shift+CmdOrCtrl+W",
+            click: () => dispatch({ type: "close-workspace" }),
+          },
         ],
       },
       { role: "editMenu" },
@@ -46,6 +57,28 @@ ipcMain.on("tab:menu", (event, id: number) => {
     {
       label: "New Tab",
       click: () => dispatch({ type: "new-tab" }),
+    },
+  ]).popup();
+});
+
+ipcMain.on("workspace:menu", (event, id: number) => {
+  Menu.buildFromTemplate([
+    {
+      label: "Rename Workspace…",
+      click: () => event.sender.send("workspace:rename-request", id),
+    },
+    {
+      label: "Close Workspace",
+      click: () =>
+        dispatch({
+          type: "close-workspace",
+          id,
+        }),
+    },
+    { type: "separator" },
+    {
+      label: "New Workspace",
+      click: () => dispatch({ type: "new-workspace" }),
     },
   ]).popup();
 });

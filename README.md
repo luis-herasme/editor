@@ -43,7 +43,7 @@ flowchart LR
 
 All arrows between the processes pass through `window.bridge`, which
 `src/ipc/preload.cts` exposes to the page. (The bridge also carries the
-command bus and the tab context menu; the full contract is
+command bus and the tab and workspace context menus; the full contract is
 `src/ipc/bridge.ts`.)
 
 Life of a keystroke, starting when you press `l`:
@@ -84,9 +84,10 @@ the other end echoes it back.
 | `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
 | `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
-| `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first tab       |
+| `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first workspace |
+| `src/renderer/workspaces.ts`   | Workspace store: one layout each, the sidebar, the snapshot  |
 | `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
-| `src/renderer/rename-dialog.ts`| The rename modal                                             |
+| `src/renderer/rename-dialog.ts`| The rename modal (tabs and workspaces)                       |
 | `src/renderer/settings.ts`     | Current settings: value, localStorage persistence, → CSS     |
 | `src/renderer/settings-dialog.ts`| The settings modal (each control issues a Command)         |
 | `src/renderer/markdown.ts`     | GitHub-look Markdown rendering (markdown-it + DOMPurify)     |

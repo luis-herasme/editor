@@ -21,6 +21,9 @@ const bridge: Bridge = {
   showTabMenu: (id) => ipcRenderer.send("tab:menu", id),
   onRenameRequest: (callback) =>
     ipcRenderer.on("tab:rename-request", (_event, id) => callback(id)),
+  showWorkspaceMenu: (id) => ipcRenderer.send("workspace:menu", id),
+  onWorkspaceRenameRequest: (callback) =>
+    ipcRenderer.on("workspace:rename-request", (_event, id) => callback(id)),
   readFile: (request) => ipcRenderer.invoke("file:read", request),
 };
 

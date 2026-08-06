@@ -35,6 +35,8 @@ export interface Bridge {
   emitEvent: (event: EditorEvent) => void;
   showTabMenu: (id: number) => void;
   onRenameRequest: (callback: (id: number) => void) => void;
+  showWorkspaceMenu: (id: number) => void;
+  onWorkspaceRenameRequest: (callback: (id: number) => void) => void;
   // the only request/response pair on the cable (ipcRenderer.invoke)
   readFile: (request: ReadFileRequest) => Promise<ReadFileResult>;
 }

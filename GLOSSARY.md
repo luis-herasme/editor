@@ -309,6 +309,25 @@ VS Code's editor area feel the way it does. This project uses
 group, and onto a pane's edge to split; window-edge drops and whole-group
 drags stay disabled until a feature needs them.
 
+## Workspace
+
+A whole editor of its own inside the same window: its own pane layout, its
+own tabs, its own shells. The sidebar lists them and switching is one click;
+only one is on screen at a time, and the ones behind keep running, so a
+build left compiling in one workspace is still compiling when you come back
+to it. The name comes from tiling window managers and VS Code, where the
+same word means "the set of things I'm currently working on"; this app's
+version is closest to i3's or macOS's *desktops* (Mission Control spaces):
+several independent screens, one visible.
+
+The mechanic is one docking layout manager instance per workspace, hidden
+with `display: none` when it isn't the active one. Nothing is serialized or
+rebuilt on a switch, which is what keeps a terminal's scrollback, its
+running program, and its cursor position exactly where you left them. The
+one thing a hidden workspace can't do is measure itself (a hidden element
+reports a zero-sized box), so terminals skip fitting while they're away and
+re-fit when their workspace comes forward.
+
 ## Drag-and-drop interception (the one-door rule)
 
 How Dockview stays subordinate to the command bus. A docking library

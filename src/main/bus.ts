@@ -7,10 +7,8 @@ export function dispatch(command: Command): void {
 
 // Read model: every Event carries a full snapshot, so the latest is truth.
 let editorState: EditorState = {
-  tabs: [],
-  layout: null,
-  activeId: -1,
-  maximizedGroupId: null,
+  workspaces: [],
+  activeWorkspaceId: -1,
 };
 ipcMain.on("event", (_event, event: EditorEvent) => {
   editorState = event.state;
