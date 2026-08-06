@@ -382,6 +382,48 @@ function buildMarkdownPane(id: number): MarkdownPane {
   const contentElement = document.createElement("div");
   contentElement.className = "markdown-scroll";
   contentElement.tabIndex = -1;
+  contentElement.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const anchor = target.closest("a");
+    if (anchor === null) {
+      return;
+    }
+    const href = anchor.getAttribute("href");
+    if (href === null) {
+      return;
+    }
+    // A link carrying a scheme (http:, mailto:, file:) is left alone: main
+    // cancels the navigation and decides what may reach the OS.
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(href)) {
+      return;
+    }
+    // Everything else is ours to handle, and none of it may navigate.
+    event.preventDefault();
+    let linkPath = href;
+    const fragment = linkPath.indexOf("#");
+    if (fragment !== -1) {
+      linkPath = linkPath.slice(0, fragment);
+    }
+    if (!linkPath.toLowerCase().endsWith(".md")) {
+      return;
+    }
+    const found = findTab(id);
+    if (found === undefined || found.tab.kind !== "markdown") {
+      return;
+    }
+    // relative to the document holding the link, not to any shell
+    const directory = found.tab.filePath.slice(
+      0,
+      found.tab.filePath.lastIndexOf("/") + 1,
+    );
+    executeCommand({
+      type: "open-markdown",
+      path: directory + linkPath,
+    });
+  });
 
   const paneElement = document.createElement("div");
   paneElement.className = "markdown-pane";
