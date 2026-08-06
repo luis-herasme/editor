@@ -1,9 +1,3 @@
-// The current settings: value, localStorage persistence, hand-off to CSS.
-// Applying them to live terminals is tab state and stays in tabs.ts.
-//
-// zod arrives by relative path: with no bundler the browser resolves every
-// import itself and a bare "zod" means nothing to it (inline import maps
-// are blocked by our CSP, external ones unsupported by Chromium).
 import { z } from "../../node_modules/zod/index.js";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { requireElement } from "./dom.js";
@@ -12,12 +6,10 @@ import type { Settings } from "../api.js";
 
 const STORAGE_KEY = "settings";
 
-// THEMES has literal keys; lookups here use user-supplied strings
+// THEMES has literal keys; lookups use user-supplied strings
 const themesByName: Record<string, Theme> = THEMES;
 
-// The gate every write passes through: corrected, not rejected. A field
-// that is missing or fails its checks catches to its default; a non-object
-// candidate to the defaults whole. localStorage may contain anything.
+// Corrected, not rejected: a field that fails its checks catches to default.
 const settingsSchema = z
   .object({
     theme: z
@@ -31,14 +23,12 @@ const settingsSchema = z
       .min(1)
       .catch(DEFAULT_SETTINGS.uiFontFamily),
     fontSize: z
-      .number() // rejects NaN and ±Infinity by itself
+      .number()
       .transform((size) => Math.min(32, Math.max(8, Math.round(size))))
       .catch(DEFAULT_SETTINGS.fontSize),
   })
   .catch({ ...DEFAULT_SETTINGS });
 
-// localStorage itself can throw: a second app instance finds it locked.
-// Bad storage means defaults, never a dead renderer.
 let settings: Settings = { ...DEFAULT_SETTINGS };
 try {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -46,16 +36,14 @@ try {
     settings = settingsSchema.parse(JSON.parse(stored));
   }
 } catch {
-  // locked storage or corrupted JSON: the defaults stand
 }
 
-// a copy, so a caller holding the result can't mutate the store
 export function getSettings(): Settings {
   return { ...settings };
 }
 
 export function currentTheme(): Theme {
-  return themesByName[settings.theme]; // always valid: the schema guards it
+  return themesByName[settings.theme];
 }
 
 export function updateSettings(partial: Partial<Settings>): void {
@@ -71,9 +59,7 @@ export function updateSettings(partial: Partial<Settings>): void {
   applyCssVariables();
 }
 
-// CSS can't read JavaScript: every visual value crosses as a custom
-// property, camelCase to kebab-case (tabBarBackground becomes
-// --tab-bar-background). Re-setting the properties restyles in place.
+// camelCase to kebab-case: tabBarBackground to --tab-bar-background
 export function applyCssVariables(): void {
   const values = {
     ...currentTheme(),
@@ -86,9 +72,6 @@ export function applyCssVariables(): void {
       "--" + key.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
     document.documentElement.style.setProperty(cssName, String(value));
   }
-  // Code token colors ship as separate dark/light files (VS Code's dark
-  // palette, VS light). An href swap, not disabled-toggling: a link
-  // enabled while still loading re-enables itself when the load ends.
   let highlightFile = "vs.min.css";
   if (currentTheme().colorScheme === "dark") {
     highlightFile = "vs2015.min.css";

@@ -10,7 +10,6 @@ export interface Theme {
   // one color for window, page and xterm cells: hides the leftover pixels
   // around the character grid
   background: string;
-  // xterm's text, cursor and selection
   foreground: string;
   cursor: string;
   selectionBackground: string;

@@ -1,10 +1,7 @@
-// Both native menus. Menu items are Command sources: they put Commands on
-// the bus and the renderer decides what a "tab" even is.
+// Menu items are Command sources: the renderer decides what a "tab" even is.
 import { Menu, ipcMain } from "electron";
 import { dispatch } from "./bus.js";
 
-// ⌘T/⌘W live here, not in the page: accelerators fire before the page
-// sees the key, and the default menu's ⌘W would otherwise swallow it.
 export function installAppMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -24,15 +21,13 @@ export function installAppMenu(): void {
           },
         ],
       },
-      { role: "editMenu" }, // keeps ⌘C/⌘V working
-      { role: "viewMenu" }, // keeps devtools reachable
+      { role: "editMenu" },
+      { role: "viewMenu" },
       { role: "windowMenu" },
     ]),
   );
 }
 
-// Right-click on a tab: a real native menu (only main can create one).
-// Rename hands off to the renderer's modal.
 ipcMain.on("tab:menu", (event, id: number) => {
   Menu.buildFromTemplate([
     {

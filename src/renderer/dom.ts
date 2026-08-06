@@ -1,5 +1,4 @@
-// Strict DOM lookups: the page's fixed elements are authored in
-// index.html, so a missing id is a build mistake, not a runtime condition.
+// The page's fixed elements are in index.html; a missing id is a build mistake.
 export function requireElement(id: string): HTMLElement {
   const element = document.getElementById(id);
   if (element === null) {

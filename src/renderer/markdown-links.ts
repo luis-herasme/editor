@@ -1,12 +1,9 @@
-// Cmd+click on a *.md path in the terminal opens it rendered. A link
-// provider is xterm's hook for making arbitrary buffer text clickable.
 import type { ILink, Terminal as XtermTerminal } from "@xterm/xterm";
 
-// path-ish runs ending in .md; quotes/brackets excluded so "(see a.md)"
-// matches just the path
+// path-ish runs ending in .md; excludes brackets so "(see a.md)" matches
 const PATH_PATTERN = /[^\s"'`()[\]{}<>]+\.md\b/g;
 
-const MAX_LINE_LENGTH = 4096; // don't scan pathological lines
+const MAX_LINE_LENGTH = 4096;
 
 type RegisterMarkdownLinksOptions = {
   terminal: XtermTerminal;
@@ -19,7 +16,7 @@ export function registerMarkdownLinks({
 }: RegisterMarkdownLinksOptions): void {
   terminal.registerLinkProvider({
     provideLinks: (bufferLineNumber, callback) => {
-      // a long path wraps across buffer rows; join the logical line
+      // a wrapped path spans multiple buffer rows; join them
       const buffer = terminal.buffer.active;
       let firstRow = bufferLineNumber - 1;
       while (firstRow > 0 && buffer.getLine(firstRow)?.isWrapped) {
@@ -46,9 +43,7 @@ export function registerMarkdownLinks({
       for (const match of text.matchAll(PATH_PATTERN)) {
         const lastIndex = match.index + match[0].length - 1;
         links.push({
-          // buffer coordinates are 1-based; the index math relies on every
-          // wrapped row being exactly `cols` characters (true for the
-          // single-width characters paths are made of)
+          // buffer coords are 1-based; index math assumes single-width chars
           range: {
             start: {
               x: (match.index % terminal.cols) + 1,
@@ -66,7 +61,7 @@ export function registerMarkdownLinks({
           },
           activate: (event, linkText) => {
             if (!event.metaKey) {
-              return; // Cmd+click, the terminal convention
+              return;
             }
             openPath(linkText);
           },

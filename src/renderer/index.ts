@@ -1,20 +1,16 @@
-// Renderer boot: this file connects everything, and nothing else.
-// window.bridge is the cable to main (ipc/bridge.ts).
 import type { Command } from "../api.js";
 import { applyCssVariables } from "./settings.js";
 import { executeCommand, handleShellData, removeTab } from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
-import "./settings-dialog.js"; // wires the ⚙ button and the settings modal
+import "./settings-dialog.js";
 
-applyCssVariables(); // the saved settings, handed to CSS
+applyCssVariables();
 
 window.bridge.onCommand(executeCommand);
 window.bridge.onShellData(handleShellData);
-window.bridge.onShellExit(removeTab); // shell died, tab goes
+window.bridge.onShellExit(removeTab);
 window.bridge.onRenameRequest(openRenameDialog);
 
-// the public interface, reachable from the devtools console (⌥⌘I):
-//   editor.command({ type: "new-tab" })
 declare global {
   interface Window {
     editor: { command: (command: Command) => void };
@@ -22,4 +18,4 @@ declare global {
 }
 window.editor = { command: executeCommand };
 
-executeCommand({ type: "new-tab" }); // boots the first shell
+executeCommand({ type: "new-tab" });

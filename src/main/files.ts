@@ -1,5 +1,3 @@
-// The renderer can't touch the disk; file:read serves the markdown view.
-// Importing this module registers the handler.
 import { ipcMain } from "electron";
 import { readFile, stat } from "fs/promises";
 import * as path from "path";
