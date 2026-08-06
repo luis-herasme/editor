@@ -108,6 +108,15 @@ async function renderMermaidDiagrams(view: HTMLElement): Promise<void> {
       tertiaryColor: theme.background,
       lineColor: theme.tabForeground,
       edgeLabelBackground: theme.background,
+      // ER attribute rows and notes derive toward black unless mapped
+      // (rowOdd/rowEven are the current renderer's names, attribute* the
+      // older ones)
+      rowOdd: theme.background,
+      rowEven: theme.tabBarBackground,
+      attributeBackgroundColorOdd: theme.background,
+      attributeBackgroundColorEven: theme.tabBarBackground,
+      noteBkgColor: theme.tabBarBackground,
+      noteTextColor: theme.tabActiveForeground,
       fontFamily: getSettings().uiFontFamily,
     },
   });

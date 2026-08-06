@@ -26,6 +26,9 @@ export interface Theme {
   // and double-darkens where two overlap
   separator: string;
   accent: string;
+  // markdown links; VS Code's textLink.foreground values, softer than the
+  // accent
+  linkForeground: string;
 }
 
 export const THEMES = {
@@ -43,6 +46,7 @@ export const THEMES = {
     tabActiveForeground: "#e6e6e6",
     separator: "#323232",
     accent: "#007aff", // macOS system blue
+    linkForeground: "#4daafc", // VS Code Dark Modern
   },
   light: {
     colorScheme: "light",
@@ -58,6 +62,7 @@ export const THEMES = {
     tabActiveForeground: "#1a1a1a",
     separator: "#d0d0d0",
     accent: "#007aff",
+    linkForeground: "#005fb8", // VS Code Light Modern
   },
   // https://ethanschoonover.com/solarized
   "solarized-dark": {
@@ -74,6 +79,7 @@ export const THEMES = {
     tabActiveForeground: "#93a1a1",
     separator: "#073642", // solarized base02, its own highlight tone
     accent: "#268bd2",
+    linkForeground: "#268bd2", // solarized blue
   },
 } satisfies Record<string, Theme>;
 

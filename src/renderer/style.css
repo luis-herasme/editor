@@ -312,7 +312,7 @@ dialog select:focus {
 }
 
 .markdown-view a {
-  color: var(--accent);
+  color: var(--link-foreground);
   text-decoration: none;
 }
 
