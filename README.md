@@ -92,6 +92,7 @@ the other end echoes it back.
 | `src/renderer/settings-dialog.ts`| The settings modal (each control issues a Command)         |
 | `src/renderer/sidebar-resize.ts`| The sidebar's drag handle; a drag ends as one Command       |
 | `src/renderer/markdown.ts`     | GitHub-look Markdown rendering (markdown-it + DOMPurify)     |
+| `src/renderer/markdown-tab.ts` | A document's pane: toolbar, rendered/raw, reload, its links  |
 | `src/renderer/markdown-links.ts`| Terminal link provider: Cmd+click a `*.md` path opens it    |
 | `src/main/files.ts`            | `file:read` for the markdown view (resolves via shell cwd)   |
 | `src/renderer/dom.ts`          | `requireElement`: strict, typed lookups of the page's fixed elements |

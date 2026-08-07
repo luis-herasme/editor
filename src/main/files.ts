@@ -26,6 +26,8 @@ ipcMain.handle(
       }
       filePath = path.resolve(base, filePath);
     }
+    // collapses ".." in a link pointing out of the document's directory
+    filePath = path.resolve(filePath);
     try {
       const stats = await stat(filePath);
       if (stats.size > MAX_FILE_BYTES) {
