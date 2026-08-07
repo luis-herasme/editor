@@ -214,6 +214,19 @@ change it and update this list.
   has any tabs left, the window closes. No other Event counts, because a new
   workspace is legitimately empty for the instant between its own Event and
   its first tab's.
+- **Killing a shell that is busy asks first.** (Decided 2026-08.) Closing
+  a window or a workspace ends every shell in it, and a shell ends
+  whatever is running inside it: a build, an ssh session, an editor with
+  unsaved work. A PTY reports the program currently in its foreground, so
+  "busy" is simply that name differing from the shell we spawned, which is
+  the same test Terminal.app applies. Both prompts live in main, because
+  only main can show a native dialog, only main knows what is in a PTY,
+  and only main can cancel a window close. The API is deliberately not
+  covered: a `close-workspace` Command issued from the console or a future
+  agent proceeds without a dialog, since a caller that isn't a person has
+  nothing to answer it with. The affordances a person uses (the menu item,
+  the accelerator, the workspace's context menu) all route through main
+  already, so they all ask.
 - **The renderer requests the first shell: the old startup race is gone.**
   Main used to spawn the shell after `loadFile` resolved, so output couldn't
   arrive before the page listened. With tabs, creation starts *in* the page

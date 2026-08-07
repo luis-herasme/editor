@@ -1,6 +1,42 @@
 // Menu items are Command sources: the renderer decides what a "tab" even is.
-import { Menu, ipcMain } from "electron";
-import { dispatch } from "./bus.js";
+import { BrowserWindow, Menu, ipcMain } from "electron";
+import { dispatch, lmuxState } from "./bus.js";
+import { confirmKilling } from "./dialogs.js";
+
+// Closing a workspace kills every shell in it. `id` defaults to the active
+// workspace, matching the Command.
+function closeWorkspace(id?: number): void {
+  // dispatch targets the focused window; without one there is nothing to close
+  const window = BrowserWindow.getFocusedWindow();
+  if (!window) {
+    return;
+  }
+  let workspaceId = id;
+  if (workspaceId === undefined) {
+    workspaceId = lmuxState.activeWorkspaceId;
+  }
+  const tabIds: number[] = [];
+  for (const workspace of lmuxState.workspaces) {
+    if (workspace.id !== workspaceId) {
+      continue;
+    }
+    for (const tab of workspace.tabs) {
+      tabIds.push(tab.id);
+    }
+  }
+  const proceed = confirmKilling({
+    window,
+    tabIds,
+    action: "Close Workspace",
+  });
+  if (!proceed) {
+    return;
+  }
+  dispatch({
+    type: "close-workspace",
+    id: workspaceId,
+  });
+}
 
 export function installAppMenu(): void {
   Menu.setApplicationMenu(
@@ -28,7 +64,7 @@ export function installAppMenu(): void {
           {
             label: "Close Workspace",
             accelerator: "Shift+CmdOrCtrl+W",
-            click: () => dispatch({ type: "close-workspace" }),
+            click: () => closeWorkspace(),
           },
         ],
       },
@@ -69,11 +105,7 @@ ipcMain.on("workspace:menu", (event, id: number) => {
     },
     {
       label: "Close Workspace",
-      click: () =>
-        dispatch({
-          type: "close-workspace",
-          id,
-        }),
+      click: () => closeWorkspace(id),
     },
     { type: "separator" },
     {

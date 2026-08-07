@@ -2,6 +2,8 @@ import { app, BrowserWindow, shell } from "electron";
 import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
+import { confirmKilling } from "./dialogs.js";
+import { lmuxState } from "./bus.js";
 import { installAppMenu } from "./menus.js";
 import "./files.js"; // registers file:read
 
@@ -29,6 +31,24 @@ function createWindow(): void {
     webPreferences: {
       preload: path.join(import.meta.dirname, "../ipc/preload.cjs"),
     },
+  });
+
+  browserWindow.on("close", (event) => {
+    const tabIds: number[] = [];
+    for (const workspace of lmuxState.workspaces) {
+      for (const tab of workspace.tabs) {
+        tabIds.push(tab.id);
+      }
+    }
+    const proceed = confirmKilling({
+      window: browserWindow,
+      tabIds,
+      action: "Close Window",
+    });
+    if (proceed) {
+      return;
+    }
+    event.preventDefault();
   });
 
   browserWindow.on("closed", killAllShells);
