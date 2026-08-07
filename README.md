@@ -105,6 +105,7 @@ the other end echoes it back.
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
 | `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
 | `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first workspace |
+| `src/renderer/bridge.ts`       | Picks `window.bridge` up off the page once, typed, and exports it |
 | `src/renderer/workspaces.ts`   | Workspace store: one layout each, the sidebar, the snapshot  |
 | `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
 | `src/renderer/rename-dialog.ts`| The rename modal (tabs and workspaces)                       |
@@ -136,6 +137,11 @@ lmux.command({ type: "write", text: "ls\n" })
 lmux.command({ type: "close-tab" })
 ```
 
-The endgame (see ARCHITECTURE.md, "The command bus") is a local server in
-the main process feeding the same bus, so an agent can fully drive
-lmux.
+That door checks what it is handed: a Command that isn't one is refused
+with a reason, rather than quietly doing nothing. The affordances inside
+the page are compile-checked instead, and skip it.
+
+The endgame (see ARCHITECTURE.md, "The API server") is a local server in
+the main process feeding the same bus, so an agent can fully drive lmux:
+HTTP over a unix socket, the whole Command union, Events and terminal
+output streaming back out.

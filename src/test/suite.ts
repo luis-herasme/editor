@@ -11,6 +11,8 @@ import {
   busTest,
   endRun,
   lmuxWindow,
+  pageHeight,
+  pollUntil,
   sendCommand,
   waitForEvent,
 } from "./harness.js";
@@ -55,19 +57,12 @@ const VISIBLE_DOCUMENT = `(() => {
 
 const rowCountsSchema = z.array(z.number().int());
 const scrollTopSchema = z.number();
-const pageHeightSchema = z.number();
+const refusedSchema = z.boolean();
 const documentSchema = z.object({
   scrollTop: z.number(),
   maximumScrollTop: z.number(),
   diagramCount: z.number().int(),
 });
-
-async function pageHeight(): Promise<number> {
-  const probed = await lmuxWindow.webContents.executeJavaScript(
-    "window.innerHeight",
-  );
-  return pageHeightSchema.parse(probed);
-}
 
 async function visibleDocument(): Promise<z.infer<typeof documentSchema>> {
   const probed =
@@ -100,6 +95,22 @@ async function visibleTerminalRows(): Promise<number> {
     throw new Error("no terminal is visible");
   }
   return rows;
+}
+
+// window.lmux.command is the door for callers outside our compiled code, so
+// it is reached the way they reach it. Whether it threw is what matters
+// here; what it threw is zod's business, and asserting on that text would
+// be testing zod.
+async function consoleDoorRefuses(commandLiteral: string): Promise<boolean> {
+  const probed = await lmuxWindow.webContents.executeJavaScript(`(() => {
+    try {
+      window.lmux.command(${commandLiteral});
+      return false;
+    } catch {
+      return true;
+    }
+  })()`);
+  return refusedSchema.parse(probed);
 }
 
 function countTabs(state: LmuxState): number {
@@ -161,27 +172,6 @@ async function openWorkspace(): Promise<WorkspaceInfo> {
     throw new Error("new-workspace opened nothing");
   }
   return workspace;
-}
-
-const POLL_INTERVAL_MS = 50;
-const POLL_TIMEOUT_MS = 5000;
-
-type PollOptions = {
-  check: () => Promise<boolean>;
-  description: string; // what was being waited for, for the failure message
-};
-
-// For what changes without an Event: a window's new size reaching the page,
-// a terminal's rows being written out, a diagram being drawn.
-async function pollUntil({ check, description }: PollOptions): Promise<void> {
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (await check()) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-  throw new Error(`timed out waiting for ${description}`);
 }
 
 const suite = describe("the command bus", () => {
@@ -378,6 +368,32 @@ const suite = describe("the command bus", () => {
         restored.scrollTop,
         target,
         `the reload moved the reader within a document ${restored.maximumScrollTop} tall`,
+      );
+    },
+  });
+
+  busTest({
+    name: "the console door refuses what is not a Command",
+    body: async () => {
+      const tabCount = countTabs(lmuxState);
+      // a plausible typo rather than nonsense: groupId is a string, and a
+      // number used to travel all the way to a group lookup that found
+      // nothing and returned, which looks exactly like a broken app
+      assert.ok(
+        await consoleDoorRefuses(`{ type: "new-tab", groupId: 7 }`),
+        "the door took a Command with a groupId of the wrong type",
+      );
+
+      // the fence again: a Command that does land, so what follows rests on
+      // a snapshot rather than on a timeout
+      sendCommand({ type: "rename-workspace", name: "fence" });
+      const fenced = await waitForEvent(
+        (event) => event.type === "workspace-renamed",
+      );
+      assert.equal(
+        countTabs(fenced.state),
+        tabCount,
+        "the refused Command opened a tab anyway",
       );
     },
   });
