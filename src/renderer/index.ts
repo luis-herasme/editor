@@ -1,4 +1,4 @@
-import type { Command } from "../api.js";
+import { commandSchema } from "../api.js";
 import { applyCssVariables } from "./settings.js";
 import { executeCommand, handleShellData, removeTab } from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
@@ -25,9 +25,18 @@ window.bridge.onWorkspaceRenameRequest((id) => {
 
 declare global {
   interface Window {
-    lmux: { command: (command: Command) => void };
+    lmux: { command: (command: unknown) => void };
   }
 }
-window.lmux = { command: executeCommand };
+
+// The console is a caller from outside our own compiled code, so this door
+// checks what it is handed, and says so rather than doing nothing when the
+// answer is no. The page's own affordances call executeCommand directly,
+// where the compiler has already checked it.
+window.lmux = {
+  command: (command: unknown) => {
+    executeCommand(commandSchema.parse(command));
+  },
+};
 
 executeCommand({ type: "new-workspace" });

@@ -373,3 +373,14 @@ case that stays green under its own mutation is testing something other
 than what its name says, which is worse than having no case at all, because
 it will be believed. The mutations are thrown away afterwards; only the
 knowledge that each case bites is kept.
+
+## Unix domain socket
+
+A socket that lives in the filesystem as a file rather than on a network
+port. Two processes on the same machine talk through it exactly as they
+would over TCP, so ordinary HTTP can run on top, but it is never reachable
+from another machine and never from a web page. Its access control is the
+file's own permissions, which is why the API server design chooses one: a
+loopback port is open to every process on the machine and needs a
+credential invented to guard it, while a socket file at 0600 is already
+restricted to the user who owns it.

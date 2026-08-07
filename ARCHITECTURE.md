@@ -224,7 +224,9 @@ change it and update this list.
   reserved for names that genuinely exist on the global scope at runtime
   (`window.bridge`, `window.lmux`, xterm's classic-script globals) and
   lives next to what creates or consumes them. Cost we accept: tsc emits an
-  empty `dist/api.js` and `dist/ipc/bridge.js` that nothing ever loads.
+  empty `dist/ipc/bridge.js` that nothing ever loads. (`api.ts` was the same
+  until 2026-08-07, when `Command` became a schema and the file gained a
+  runtime half; the types in it are still ordinary exports.)
 - **Tabs: a tab id on every message.** (Replaced "one window, one shell,
   no session abstraction"; the predicted ~15-line rewrite arrived when tabs
   did.) One tab = one xterm.js instance in the renderer = one PTY in main's
@@ -484,7 +486,9 @@ change it and update this list.
   the project's first non-UI runtime dependency, deliberately used only
   where untrusted data enters (localStorage, `update-settings` payloads);
   the IPC contract stays compile-checked only, until an outside caller
-  (the future API server) makes those inputs untrusted too. Delivery
+  (the future API server) makes those inputs untrusted too. (Amended
+  2026-08-07: one such caller turned out to exist already, and `Command` is
+  now a schema. See the next entry.) Delivery
   quirk worth knowing: with no bundler, the browser resolves every
   import itself, and a bare `"zod"` means nothing to it. Import maps are
   the web's fix, but inline ones are blocked by our CSP and external
@@ -667,6 +671,82 @@ change it and update this list.
   the Open VSX registry rather than Microsoft's marketplace (whose license
   covers only official VS Code builds).
 
+- **`Command` is a schema, and the doors check it.** (Decided 2026-08-07,
+  amending the zod entry above.) The Commands in `api.ts` are declared as a
+  zod `discriminatedUnion` and their TypeScript type is derived from it with
+  `z.infer`, so there is still exactly one definition and it cannot drift
+  from the checker. `Settings` moved the same way, since the
+  `update-settings` payload has to describe it. Everything else in `api.ts`
+  stays plain types: Events and state travel outwards, where the receiver is
+  us. The check is applied at the door outside code enters through, not on
+  the path the page's own affordances take. Today that door is
+  `window.lmux.command`, the console API, which now throws instead of
+  quietly doing nothing when it is handed something that is not a Command; a
+  `groupId: 7` used to travel all the way to a group lookup that found
+  nothing and returned, which is indistinguishable from a broken app.
+  `executeCommand` itself stays unchecked, because every call reaching it
+  from inside the page has already been checked by the compiler, and
+  `dispatch` keeps its `Command` parameter so the menus stay compile-checked
+  rather than becoming runtime-checked. What this deliberately does not do
+  is validate the rest of the cable (`shell:write`, `file:read`, `event`),
+  which is still our own compiled code on both ends. One behaviour changed
+  where it was worth being explicit: a settings *value* out of range is
+  still corrected rather than rejected (`fontSize: 999` becomes 32), because
+  that is what the entry above decided and what the renderer's schema does;
+  a field of the wrong *type* is not a value at all, and now gets a refusal
+  with a reason instead. The import path is the ugly one the entry above
+  describes, and had to move from `settings.ts` into `api.ts`, since this
+  module is now loaded by both the page (which cannot resolve a bare
+  specifier) and main.
+
+- **The API server: what it will be, when we build it.** (Designed
+  2026-08-07, not built. The endgame named at the top of this document: a
+  local server feeding the same bus, so an agent can drive lmux the way a
+  person does.) The shape is settled here so the pieces that arrive early,
+  like the `Command` schema above, land in the right place. Five decisions,
+  each of which could have gone the other way:
+
+  1. **HTTP over a unix domain socket, not a TCP port.** The socket lives in
+     `userData` and the transport stays HTTP, so any client that can speak
+     it can speak this (`curl --unix-socket` does). A loopback port is
+     reachable by every process on the machine and by any page that can be
+     tricked into fetching it; a socket file is reachable by whoever the
+     filesystem says.
+  2. **Authentication is the socket's file permissions (0600).** No token,
+     because a token stored on the same disk, readable by the same user,
+     protects against nothing the permissions do not already cover. The
+     honest statement of the exposure: any process running as you can drive
+     lmux, which is the same power your shell already gives it. If the
+     server ever needs to leave the machine, that is a different decision
+     and it needs a real credential.
+  3. **The whole Command union, including `write`.** Not a safe subset: the
+     bus is the public interface, and a server exposing part of it would rot
+     within a release, which is exactly the drift the one-door rule exists
+     to prevent. This does mean the API can run arbitrary programs, because
+     `write` types into a shell. That is the feature.
+  4. **Two streams out, plus the read model.** `GET /state` answers from the
+     snapshot main already keeps, so a client can start cold without waiting
+     for something to happen. `GET /events` streams Events as they occur.
+     `GET /tabs/:id/output` streams the bytes that tab's shell produces,
+     because an agent that types `ls` must be able to see what came back;
+     main already relays every one of those bytes to the renderer, so this
+     is a tee, not a new capability. The caveat worth knowing before it
+     surprises someone: main keeps no scrollback (xterm holds it, in the
+     renderer), so a subscriber sees output from the moment it subscribes.
+     Replay would mean main keeping a ring buffer per tab, and that is a
+     decision to take when something needs it.
+  5. **`file:read` is not exposed.** Reading any file is correct for an
+     editor when a person clicked the path, which is why #8 was closed. A
+     socket asking is not that. An agent that can drive a shell can already
+     `cat` a file, so an endpoint adds nothing it lacks, while adding a way
+     to exfiltrate with no shell running and nothing on screen.
+
+  Two things fall out of the design. The server parses with `commandSchema`
+  at its edge and answers 400 with the reason, so `dispatch` keeps its typed
+  parameter and the menus stay compile-checked. And since `dispatch` sends
+  to the focused window, the server drives whichever window that is, which
+  is fine while there is exactly one and is part of what #12 has to settle.
+
 - **Tests drive the bus from inside the real app.** (Decided 2026-08.)
   `npm test` starts Electron with `src/test/` as its entry, which imports
   `main/index.ts` for the ordinary boot: the same window, preload, menu and
@@ -711,8 +791,8 @@ A quick map so features land on the right side of the cable:
   choice, window size persistence.
 - **New capabilities** now usually mean new Commands/Events in `api.ts`;
   the bus is the protocol growing point. The public API server (feeding
-  `dispatch` from HTTP/WebSocket, streaming Events back) is a main-only
-  change.
+  `dispatch` from a socket, streaming Events and terminal output back) is a
+  main-only change, and its shape is decided in "The API server" above.
 - **Protocol changes** (the expensive kind, design first): config file (a
   `config:get` message or similar), shell integration/OSC hooks (new main →
   renderer events), VS Code view (a message telling the renderer what port

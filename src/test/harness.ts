@@ -6,6 +6,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { test } from "node:test";
 import * as path from "path";
+import { z } from "zod";
 import type { Command, LmuxEvent } from "../api.js";
 
 // A throwaway profile: a run must not read or write the settings and window
@@ -96,6 +97,57 @@ lmuxWindow.focus();
 
 // The renderer opens its first workspace, and its first shell, on boot.
 await waitForEvent((event) => event.type === "tab-opened");
+
+const POLL_INTERVAL_MS = 50;
+const POLL_TIMEOUT_MS = 5000;
+
+type PollOptions = {
+  check: () => Promise<boolean>;
+  description: string; // what was being waited for, for the failure message
+};
+
+// For what changes without an Event: a window's new size reaching the page,
+// a terminal's rows being written out, a diagram being drawn.
+export async function pollUntil({
+  check,
+  description,
+}: PollOptions): Promise<void> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (await check()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  throw new Error(`timed out waiting for ${description}`);
+}
+
+const pageHeightSchema = z.number();
+
+export async function pageHeight(): Promise<number> {
+  const probed =
+    await lmuxWindow.webContents.executeJavaScript("window.innerHeight");
+  return pageHeightSchema.parse(probed);
+}
+
+// The app remembers where its window was, so a run that was killed rather
+// than exiting leaves its size behind for the next one, and the cases that
+// measure the window would start somewhere unknown. Take the default size
+// back, and let it reach the page before any case measures anything.
+const TEST_WINDOW_WIDTH_PX = 900;
+const TEST_WINDOW_HEIGHT_PX = 600;
+
+lmuxWindow.setSize(TEST_WINDOW_WIDTH_PX, TEST_WINDOW_HEIGHT_PX);
+let settlingHeight = -1;
+await pollUntil({
+  check: async () => {
+    const height = await pageHeight();
+    const settled = height === settlingHeight;
+    settlingHeight = height;
+    return settled;
+  },
+  description: "the window to settle at the size a run starts from",
+});
 
 // webContents.send takes `any`, so this is the one place a Command sent by a
 // case is still checked against the API it is exercising. Sent straight to
