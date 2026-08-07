@@ -125,10 +125,10 @@ export type TabInfo =
 
 // One tab strip and the pane below it. Group ids are opaque handles
 // assigned by the layout engine, unique within their workspace only.
-export interface GroupInfo {
+export type GroupInfo = {
   id: string;
   tabs: TabInfo[];
-}
+};
 
 // Split direction: resizing changes no tab and emits no Event.
 export type LayoutNode =
@@ -138,7 +138,7 @@ export type LayoutNode =
 // A workspace is a whole lmux of its own: its own pane layout, its own
 // tabs, its own shells. Only one is on screen at a time; the rest keep
 // running.
-export interface WorkspaceInfo {
+export type WorkspaceInfo = {
   id: number;
   // the active tab's title, unless an explicit rename pinned it
   name: string;
@@ -146,9 +146,9 @@ export interface WorkspaceInfo {
   layout: LayoutNode | null; // null only while the workspace has no tabs
   activeId: number; // this workspace's own active tab
   maximizedGroupId: string | null; // the group filling the window, if any
-}
+};
 
-export interface LmuxState {
+export type LmuxState = {
   workspaces: WorkspaceInfo[]; // in sidebar order
   activeWorkspaceId: number; // -1 only before the first workspace exists
-}
+};

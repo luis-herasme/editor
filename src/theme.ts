@@ -4,7 +4,7 @@ import type { Settings } from "./api.js";
 
 // One complete palette: every theme defines every key, so switching can
 // never leave a color behind.
-export interface Theme {
+export type Theme = {
   // handed to CSS `color-scheme`, so Chromium's own drawings match
   colorScheme: "dark" | "light";
   // one color for window, page and xterm cells: hides the leftover pixels
@@ -28,7 +28,7 @@ export interface Theme {
   // markdown links; VS Code's textLink.foreground values, softer than the
   // accent
   linkForeground: string;
-}
+};
 
 export const THEMES = {
   dark: {

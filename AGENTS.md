@@ -54,6 +54,14 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 ### Types
 
+- Default to `type`, not `interface`. Aliases compose with `&` where an
+  interface would `extend`, and they cover unions, intersections and
+  primitives too, so every named type in the codebase reads the same way and
+  no reader has to work out why this one is declared differently. The single
+  exception is declaration merging, which is the only way to augment a type
+  that already exists and which only interfaces have: `declare global {
+  interface Window { ... } }` for a real runtime global, and the same for
+  augmenting a library's own type.
 - Never use type assertions (`as`). Use Zod validation, type narrowing, or a validating library constructor instead. `as const` is the accepted exception.
 - Never use the non-null assertion operator (`!`). Use a runtime guard or restructure so the type narrows naturally.
 - Default to Zod for runtime narrowing of `unknown` values; never hand-rolled `typeof x === 'object' && 'field' in x` chains.

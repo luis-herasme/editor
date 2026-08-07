@@ -3,28 +3,28 @@
 // bus is the one structured channel.
 import type { Command, LmuxEvent } from "../api.js";
 
-export interface ShellSizeMessage {
+export type ShellSizeMessage = {
   id: number;
   cols: number;
   rows: number;
-}
+};
 
-export interface ShellDataMessage {
+export type ShellDataMessage = {
   id: number;
   data: string;
-}
+};
 
 // Relative path resolves against the shell cwd of `baseTabId`.
-export interface ReadFileRequest {
+export type ReadFileRequest = {
   path: string;
   baseTabId?: number;
-}
+};
 
 export type ReadFileResult =
   | { resolvedPath: string; content: string }
   | { error: string };
 
-export interface Bridge {
+export type Bridge = {
   spawnShell: (size: ShellSizeMessage) => void;
   writeToShell: (message: ShellDataMessage) => void;
   resizeShell: (size: ShellSizeMessage) => void;
@@ -39,7 +39,7 @@ export interface Bridge {
   onWorkspaceRenameRequest: (callback: (id: number) => void) => void;
   // the only request/response pair on the cable (ipcRenderer.invoke)
   readFile: (request: ReadFileRequest) => Promise<ReadFileResult>;
-}
+};
 
 declare global {
   interface Window {

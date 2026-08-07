@@ -31,20 +31,20 @@ declare global {
   const FitAddon: { FitAddon: typeof XtermFitAddon };
 }
 
-interface TabCommon {
+type TabCommon = {
   panel: IDockviewPanel;
   titleElement: HTMLElement;
   titlePinned: boolean;
-}
+};
 
-interface TerminalTab extends TabCommon {
+type TerminalTab = TabCommon & {
   kind: "terminal";
   terminal: XtermTerminal;
   observer: ResizeObserver;
   fitAddon: XtermFitAddon;
-}
+};
 
-export interface MarkdownTab extends TabCommon {
+export type MarkdownTab = TabCommon & {
   kind: "markdown";
   element: HTMLElement; // the pane: toolbar above, content below
   contentElement: HTMLElement; // what scrolls and takes focus
@@ -55,7 +55,7 @@ export interface MarkdownTab extends TabCommon {
   baseTabId: number | undefined;
   mode: MarkdownMode;
   markdown: string; // the file's text, shown raw or rendered
-}
+};
 
 export type Tab = TerminalTab | MarkdownTab;
 

@@ -27,7 +27,7 @@ declare global {
   }
 }
 
-export interface Workspace {
+export type Workspace = {
   id: number;
   name: string;
   element: HTMLElement; // its Dockview root, hidden unless active
@@ -36,7 +36,7 @@ export interface Workspace {
   tabs: Map<number, Tab>;
   activeId: number;
   namePinned: boolean;
-}
+};
 
 export const workspaces = new Map<number, Workspace>();
 
