@@ -122,6 +122,16 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 
 ## This repo specifically
 
+- **macOS today, portable eventually: say so before adding an assumption.**
+  The app is macOS-only for now (see ARCHITECTURE.md for the running list
+  of what that costs), but it is meant to run elsewhere later. So whenever
+  a change relies on something a Linux or Windows build would not have, a
+  platform-only API, a shell binary, a path convention, a window-chrome
+  style, a hardcoded ⌘ in visible text, **flag it in the response and add
+  it to that list.** Do not silently pick the macOS-only route, and do not
+  quietly build a cross-platform abstraction nobody asked for either:
+  write the simple macOS version, and name the debt out loud so it stays a
+  decision rather than a discovery.
 - **Minimal solution first.** Write the smallest working version of a feature. No abstractions for features that don't exist yet, no build tooling unless it becomes necessary. Refactor only when a new feature actually demands it.
 - **Minimal tooling.** Default to the most boring, most widely-known tool. No extra package managers, task runners, or config layers unless a concrete problem forces it.
 - **Native ESM only, no CommonJS.** Hand-written `require()` is a code smell. Everything compiles to native ESM (`"type": "module"`, tsconfig `module: nodenext`); write `import` with explicit `.js` extensions. The single sanctioned exception is `src/preload.cts` (Electron's sandbox requires a CommonJS preload; tsc emits it as `.cjs`). Prefer removing the cause of a wart over documenting the wart.
