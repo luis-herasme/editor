@@ -1,5 +1,6 @@
 // Menu items are Command sources: the renderer decides what a "tab" even is.
 import { BrowserWindow, Menu, ipcMain } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
 import { dispatch, lmuxState } from "./bus.js";
 import { confirmKilling } from "./dialogs.js";
 
@@ -38,6 +39,45 @@ function closeWorkspace(id?: number): void {
   });
 }
 
+// The sidebar lists workspaces by position; the Command carries an id.
+function activateWorkspaceAt(position: number): void {
+  const workspace = lmuxState.workspaces[position];
+  if (workspace === undefined) {
+    return;
+  }
+  dispatch({
+    type: "activate-workspace",
+    id: workspace.id,
+  });
+}
+
+// Wraps at both ends, so holding the shortcut walks the whole sidebar.
+function cycleWorkspace(step: number): void {
+  const workspaces = lmuxState.workspaces;
+  if (workspaces.length === 0) {
+    return;
+  }
+  let active = 0;
+  for (const [position, workspace] of workspaces.entries()) {
+    if (workspace.id === lmuxState.activeWorkspaceId) {
+      active = position;
+      break;
+    }
+  }
+  activateWorkspaceAt((active + step + workspaces.length) % workspaces.length);
+}
+
+// Positions, not names: the menu is built once, and a name can change
+// while it is on screen.
+const workspacePositionItems: MenuItemConstructorOptions[] = [];
+for (let position = 0; position < 9; position++) {
+  workspacePositionItems.push({
+    label: `Workspace ${position + 1}`,
+    accelerator: `Control+${position + 1}`,
+    click: () => activateWorkspaceAt(position),
+  });
+}
+
 export function installAppMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -55,7 +95,11 @@ export function installAppMenu(): void {
             accelerator: "CmdOrCtrl+W",
             click: () => dispatch({ type: "close-tab" }),
           },
-          { type: "separator" },
+        ],
+      },
+      {
+        label: "Workspace",
+        submenu: [
           {
             label: "New Workspace",
             accelerator: "Shift+CmdOrCtrl+T",
@@ -66,6 +110,19 @@ export function installAppMenu(): void {
             accelerator: "Shift+CmdOrCtrl+W",
             click: () => closeWorkspace(),
           },
+          { type: "separator" },
+          {
+            label: "Next Workspace",
+            accelerator: "Control+Tab",
+            click: () => cycleWorkspace(1),
+          },
+          {
+            label: "Previous Workspace",
+            accelerator: "Shift+Control+Tab",
+            click: () => cycleWorkspace(-1),
+          },
+          { type: "separator" },
+          ...workspacePositionItems,
         ],
       },
       { role: "editMenu" },
