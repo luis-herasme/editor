@@ -622,6 +622,18 @@ change it and update this list.
   Signing is off (`identity: null`) because it needs a paid Apple
   developer account: the build runs locally, and a copy that arrives by
   download needs its quarantine attribute cleared (README).
+- **The chrome says what it is, not just how it looks.** (Decided 2026-08,
+  a first pass on accessibility.) The sidebar is a `tablist` whose rows are
+  `tab`s carrying `aria-selected`, which is what the accent bar and the
+  background shade were saying visually and to nobody else; the pane area
+  is the matching `tabpanel`. The settings gear, whose whole label was the
+  glyph "⚙", gets a real name. And a tab's close affordance became a
+  `<button>` rather than a `<span>` with a click handler, so it can be
+  reached and pressed without a mouse. Deliberately still open (#14): the
+  Markdown toolbar's mode button needs `aria-pressed`, and there is no
+  documented keyboard route out of the terminal into the chrome, which
+  matters because focus is deliberately herded *into* the terminal (see
+  "the focus policy" in the decisions above).
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)

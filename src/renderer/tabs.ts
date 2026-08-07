@@ -168,10 +168,12 @@ function buildTabElement(id: number): TabElements {
   titleElement.textContent = "Untitled";
   titleElement.title = "Double-click to fill the window";
 
-  const closeElement = document.createElement("span");
+  // a button, not a span: it has to be reachable and pressable by keyboard
+  const closeElement = document.createElement("button");
   closeElement.className = "tab-close";
   closeElement.textContent = "×";
   closeElement.title = "Close Tab (⌘W)";
+  closeElement.ariaLabel = "Close tab";
   closeElement.addEventListener("click", (event) => {
     event.stopPropagation();
     executeCommand({
