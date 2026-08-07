@@ -1,47 +1,107 @@
 // Try me in devtools (⌥⌘I):
 //   lmux.command({ type: "new-tab" })
 //   lmux.command({ type: "write", text: "ls\n" })
-// Types only: the emitted api.js is empty.
+// The Commands are declared as a schema and their types derived from it, so
+// a caller from outside our own compiled code can be checked against the
+// same one definition the compiler uses. Everything else here is types
+// only; Events and state travel outwards, where the receiver is us.
+// zod by path, not by name: this module is loaded by both the page, which
+// cannot resolve a bare specifier, and by main.
+import { z } from "../node_modules/zod/index.js";
 
-export type SplitSide = "left" | "right" | "top" | "bottom";
+const splitSideSchema = z.enum(["left", "right", "top", "bottom"]);
+export type SplitSide = z.infer<typeof splitSideSchema>;
+
+// A markdown tab shows the file rendered, or its source as it is on disk.
+const markdownModeSchema = z.enum(["rendered", "raw"]);
+export type MarkdownMode = z.infer<typeof markdownModeSchema>;
+
+// `theme` stays a plain string: which names exist is the consumer's business
+// (renderer/settings.ts holds THEMES and corrects an unknown one).
+// fontFamily/fontSize are the terminal's, uiFontFamily the chrome's,
+// markdownFont* the rendered document's.
+export const settingsSchema = z.object({
+  theme: z.string(),
+  fontFamily: z.string(),
+  fontSize: z.number(),
+  uiFontFamily: z.string(),
+  markdownFontFamily: z.string(),
+  markdownFontSize: z.number(),
+  sidebarWidth: z.number(), // pixels; the sidebar's drag handle is its UI
+});
+
+export type Settings = z.infer<typeof settingsSchema>;
 
 // `id` defaults to the active tab where optional. Tab ids are unique across
 // workspaces; group ids are resolved inside the tab's own workspace.
-export type Command =
-  | { type: "new-tab"; groupId?: string }
-  | { type: "close-tab"; id?: number }
-  | { type: "activate-tab"; id: number }
-  | { type: "write"; id?: number; text: string }
-  | { type: "move-tab"; id?: number; groupId?: string; index: number }
-  | { type: "split-tab"; id?: number; targetGroupId?: string; side: SplitSide }
+export const commandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("new-tab"), groupId: z.string().optional() }),
+  z.object({ type: z.literal("close-tab"), id: z.number().optional() }),
+  z.object({ type: z.literal("activate-tab"), id: z.number() }),
+  z.object({
+    type: z.literal("write"),
+    id: z.number().optional(),
+    text: z.string(),
+  }),
+  z.object({
+    type: z.literal("move-tab"),
+    id: z.number().optional(),
+    groupId: z.string().optional(),
+    index: z.number(),
+  }),
+  z.object({
+    type: z.literal("split-tab"),
+    id: z.number().optional(),
+    targetGroupId: z.string().optional(),
+    side: splitSideSchema,
+  }),
   // An explicit rename pins against shell transient (OSC) titles;
   // `title: ""` reverts to "Untitled" and unpins.
-  | { type: "set-tab-title"; id?: number; title: string; transient?: boolean }
-  // Invalid values are corrected to their defaults, not rejected.
-  | { type: "update-settings"; settings: Partial<Settings> }
+  z.object({
+    type: z.literal("set-tab-title"),
+    id: z.number().optional(),
+    title: z.string(),
+    transient: z.boolean().optional(),
+  }),
+  // Out-of-range values are corrected to their defaults by the consumer, not
+  // rejected here; a field of the wrong type is not a value at all, and does
+  // not get in.
+  z.object({
+    type: z.literal("update-settings"),
+    settings: settingsSchema.partial(),
+  }),
   // Default: active group. Relative path resolves against baseTabId's cwd.
-  | {
-      type: "open-markdown";
-      path: string;
-      baseTabId?: number;
-      groupId?: string;
-    }
-  | { type: "toggle-maximize"; id?: number }
+  z.object({
+    type: z.literal("open-markdown"),
+    path: z.string(),
+    baseTabId: z.number().optional(),
+    groupId: z.string().optional(),
+  }),
+  z.object({ type: z.literal("toggle-maximize"), id: z.number().optional() }),
   // Both ignore a tab that isn't a markdown one.
-  | { type: "set-markdown-mode"; id?: number; mode: MarkdownMode }
+  z.object({
+    type: z.literal("set-markdown-mode"),
+    id: z.number().optional(),
+    mode: markdownModeSchema,
+  }),
   // Re-reads the file from disk, keeping the scroll position.
-  | { type: "reload-markdown"; id?: number }
+  z.object({ type: z.literal("reload-markdown"), id: z.number().optional() }),
   // A new workspace starts empty, becomes active, and gets one terminal tab.
-  | { type: "new-workspace" }
+  z.object({ type: z.literal("new-workspace") }),
   // Kills every shell in the workspace; the last workspace can't be closed.
-  | { type: "close-workspace"; id?: number }
-  | { type: "activate-workspace"; id: number }
+  z.object({ type: z.literal("close-workspace"), id: z.number().optional() }),
+  z.object({ type: z.literal("activate-workspace"), id: z.number() }),
   // Pins the name against the active tab's title; `name: ""` unpins.
-  | { type: "rename-workspace"; id?: number; name: string };
+  z.object({
+    type: z.literal("rename-workspace"),
+    id: z.number().optional(),
+    name: z.string(),
+  }),
+]);
+
+export type Command = z.infer<typeof commandSchema>;
 
 // Every event carries the full state it produced.
-
-
 export type LmuxEvent =
   | { type: "tab-opened"; id: number; state: LmuxState }
   | { type: "tab-closed"; id: number; state: LmuxState }
@@ -58,22 +118,6 @@ export type LmuxEvent =
   | { type: "markdown-mode-changed"; id: number; state: LmuxState }
   // the file was re-read; its text is in the view, not in the state
   | { type: "markdown-reloaded"; id: number; state: LmuxState };
-
-// `theme` stays a plain string so this file stays types-only; the consumer
-// validates it. fontFamily/fontSize are the terminal's, uiFontFamily the
-// chrome's, markdownFont* the rendered document's.
-export interface Settings {
-  theme: string;
-  fontFamily: string;
-  fontSize: number;
-  uiFontFamily: string;
-  markdownFontFamily: string;
-  markdownFontSize: number;
-  sidebarWidth: number; // pixels; the sidebar's drag handle is its UI
-}
-
-// A markdown tab shows the file rendered, or its source as it is on disk.
-export type MarkdownMode = "rendered" | "raw";
 
 export type TabInfo =
   | { id: number; title: string; kind: "terminal" }
