@@ -14,6 +14,23 @@ npm start         # type-checks + compiles src/ to dist/, then launches
 
 `npm run check` type-checks without launching.
 
+## Build it
+
+```sh
+npm run package   # release/mac-arm64/lmux.app, fastest
+npm run dist      # also a .dmg and a .zip
+```
+
+The build is **unsigned**, so it runs from where you built it but macOS
+quarantines it if it ever arrives by download or AirDrop:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/lmux.app
+```
+
+Signing and notarization need a paid Apple developer account; see #4. The
+app also ships Electron's default icon until one is drawn.
+
 ## How it works
 
 The app is two processes. Each tab pairs one xterm.js instance (renderer)
