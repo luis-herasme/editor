@@ -7,7 +7,9 @@
   "scripts": {
     "start": "tsc && electron .",
     "check": "tsc --noEmit",
-    "rebuild": "electron-rebuild -f -w node-pty"
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "package": "tsc && electron-builder --mac --dir",
+    "dist": "tsc && electron-builder --mac"
   },
   "dependencies": {
     "@highlightjs/cdn-assets": "^11.11.1",
@@ -24,8 +26,33 @@
     "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.1.2",
     "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "highlight.js": "^11.11.1",
     "type-fest": "^5.8.0",
     "typescript": "^7.0.2"
+  },
+  "build": {
+    "directories": {
+      "output": "release"
+    },
+    "appId": "dev.herasme.lmux",
+    "productName": "lmux",
+    "files": [
+      "dist/**/*",
+      "src/renderer/*.html",
+      "src/renderer/*.css",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/node-pty/**"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null
+    }
   }
 }

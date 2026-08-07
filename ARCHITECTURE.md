@@ -607,6 +607,21 @@ change it and update this list.
   menu accelerators are declared `CmdOrCtrl`, and only the *text* people
   read is hardcoded. That is the cheapest kind of debt and the easiest to
   forget.
+- **Packaged with electron-builder, unsigned for now.** (Decided 2026-08.)
+  `npm run package` produces a runnable `.app`, `npm run dist` adds a dmg
+  and a zip. Two settings carry the whole configuration and both exist
+  because of decisions made earlier in this document. `asarUnpack` for
+  node-pty: a native `.node` cannot be loaded from inside the asar
+  archive, and node-pty is the one native dependency. And `files` lists
+  `src/renderer/*.html` and `*.css` alongside `dist/`, because the
+  no-bundler rule means the page loads xterm, Dockview, zod and the
+  markdown libraries by relative `node_modules` path, so the packaged app
+  needs those files sitting in the same relative position they occupy in
+  the source tree. Output goes to `release/`, not `dist/`, which tsc owns;
+  sharing them would package the app inside itself on the next build.
+  Signing is off (`identity: null`) because it needs a paid Apple
+  developer account: the build runs locally, and a copy that arrives by
+  download needs its quarantine attribute cleared (README).
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
