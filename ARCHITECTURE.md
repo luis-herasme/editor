@@ -545,6 +545,19 @@ change it and update this list.
   workspace is still open (the same soft spot markdown tabs already have);
   and workspaces are in-memory, so a restart is back to one, as it is for
   tabs.
+- **Workspaces are switched by position from the keyboard.** (Decided
+  2026-08.) ⌃1 to ⌃9 pick the workspace at that position in the sidebar,
+  ⌃⇥ and ⇧⌃⇥ walk the list and wrap at both ends, and all of it lives in
+  a Workspace menu that also absorbed New and Close Workspace from File.
+  No new Command: the sidebar labels workspaces by position while
+  `activate-workspace` takes an id, so main resolves one into the other
+  from the state snapshot it already keeps. That is the menu behaving like
+  any other API client, which is the same reason the menu owns the
+  shortcut rather than the page (a page-level key handler never sees a key
+  an accelerator has claimed; see "Menu accelerator" in the glossary). The
+  numbered items are static labels, not workspace names: the menu is built
+  once at startup and a name can change while it is on screen. A position
+  with no workspace behind it does nothing.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
