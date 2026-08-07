@@ -90,6 +90,21 @@ cancels every `will-navigate` and denies every window-open, handing http,
 https and mailto URLs to the browser instead and dropping the rest; the
 renderer never decides what may reach the OS.
 
+A note on the Content-Security-Policy, because Electron complains about it
+at every launch. **The warning is a false positive and the policy is
+enforced.** Electron's check reads the *response headers*, and a `file://`
+page has none: the only headers our page comes back with are
+`Content-Type` and `Last-Modified`. It therefore cannot see the `<meta
+http-equiv>` policy in `index.html` and assumes there is none. Measured
+against the running app, that policy is doing its job: `eval` and `new
+Function` both throw `EvalError`, an injected inline `<script>` never
+runs, and `fetch` to a remote host is refused. The warning also only
+prints in development, since Electron silences these for a packaged app.
+It is left switched on rather than muted, so a *real* warning is still
+visible later. The one genuine loosening is `style-src 'unsafe-inline'`,
+which Dockview and xterm require because they inject `<style>` blocks at
+runtime and offer no way to carry a nonce.
+
 ## The command bus: the public interface
 
 The most important seam in the project. Everything lmux can do is
