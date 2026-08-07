@@ -95,6 +95,7 @@ the other end echoes it back.
 | ------------------------------ | ------------------------------------------------------------ |
 | `src/api.ts`                   | **The public interface**: every Command in, every Event out  |
 | `src/theme.ts`                 | The theme palettes (`THEMES`) and the default settings       |
+| `src/session.ts`               | What a restart brings back: the session schema, read off the state |
 | `src/ipc/bridge.ts`            | The IPC contract as a type (`window.bridge`)                 |
 | `src/ipc/preload.cts`          | Security bridge: implements `window.bridge`, nothing else    |
 | `src/main/index.ts`            | Main boot: the window and the app lifecycle                  |
@@ -102,6 +103,7 @@ the other end echoes it back.
 | `src/main/menus.ts`            | App menu + tab context menu (menu items issue Commands)      |
 | `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
 | `src/main/window-state.ts`     | Where the window was last time (size and position)           |
+| `src/main/session-state.ts`    | The last session on disk: workspaces, tabs, documents        |
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
 | `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
 | `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first workspace |

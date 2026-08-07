@@ -5,6 +5,7 @@
 // on.
 import { app, BrowserWindow, ipcMain } from "electron";
 import { test } from "node:test";
+import { unlinkSync } from "fs";
 import * as path from "path";
 import { z } from "zod";
 import type { Command, LmuxEvent } from "../api.js";
@@ -74,6 +75,16 @@ export function waitForEvent(
 }
 
 // Booting the app
+
+// The app rebuilds its last session at boot, so a run that left one behind
+// would hand the cases an app they did not describe. Imported dynamically
+// for the same reason main is: the path is computed from the profile above.
+const { SESSION_FILE_PATH } = await import("../main/session-state.js");
+try {
+  unlinkSync(SESSION_FILE_PATH);
+} catch {
+  // no session to forget, which is the state this wants anyway
+}
 
 // Dynamic, so the profile above is set before main's modules read paths off
 // it at import time (window-state.ts computes its file path that way).

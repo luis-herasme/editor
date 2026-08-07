@@ -1,9 +1,11 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import type { BrowserWindowConstructorOptions } from "electron";
 import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
 import { savedWindowBounds, saveWindowBounds } from "./window-state.js";
+import { savedSession, saveSession } from "./session-state.js";
+import { sessionFromState } from "../session.js";
 import { confirmKilling } from "./dialogs.js";
 import { lmuxState } from "./bus.js";
 import { installAppMenu } from "./menus.js";
@@ -62,6 +64,9 @@ function createWindow(): void {
     // only once the close is really happening, and the normal bounds, so a
     // zoomed window remembers the size it unzooms to
     saveWindowBounds(browserWindow.getNormalBounds());
+    // the read model is the truth here as everywhere: whatever Event arrived
+    // last describes what the window looked like when it was closed
+    saveSession(sessionFromState(lmuxState));
   });
 
   browserWindow.on("closed", killAllShells);
@@ -81,6 +86,15 @@ function createWindow(): void {
     path.join(import.meta.dirname, "../../src/renderer/index.html"),
   );
 }
+
+// The page asks for this once, at boot, before it decides what to open.
+ipcMain.handle("session:read", () => {
+  const session = savedSession();
+  if (session === undefined) {
+    return null;
+  }
+  return session;
+});
 
 app.whenReady().then(() => {
   installAppMenu();

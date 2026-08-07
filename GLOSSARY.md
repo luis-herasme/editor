@@ -392,3 +392,16 @@ file's own permissions, which is why the API server design chooses one: a
 loopback port is open to every process on the machine and needs a
 credential invented to guard it, while a socket file at 0600 is already
 restricted to the user who owns it.
+
+## Session (what survives a quit)
+
+Everything lmux has open lives in memory, so quitting used to lose it. A
+*session* is the smaller, honest description of that: which workspaces
+existed, which tabs each held and in what order, which document a markdown
+tab was showing and in which mode, and which of them you were looking at. It
+is not a snapshot of the state, because most of the state cannot be rebuilt.
+A shell is the clearest case: a terminal tab's shell is a live process with
+its own children and its own scrollback, and none of that can be brought
+back from a file. What a restart can do is start a new shell in a new tab in
+the same position, which is why a session records the position and nothing
+else about a terminal.

@@ -447,6 +447,7 @@ function buildLayout({
           title,
           kind: "markdown",
           mode: tab.mode,
+          path: tab.filePath,
         });
         continue;
       }
@@ -517,6 +518,7 @@ function describeWorkspace(workspace: Workspace): WorkspaceInfo {
     return {
       id: workspace.id,
       name: workspace.name,
+      namePinned: workspace.namePinned,
       tabs: [],
       layout: null,
       activeId: workspace.activeId,
@@ -541,6 +543,7 @@ function describeWorkspace(workspace: Workspace): WorkspaceInfo {
   return {
     id: workspace.id,
     name: workspace.name,
+    namePinned: workspace.namePinned,
     tabs: tabList,
     layout,
     activeId: workspace.activeId,

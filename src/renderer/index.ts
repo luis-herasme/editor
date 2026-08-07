@@ -1,7 +1,12 @@
 import { commandSchema } from "../api.js";
 import { bridge } from "./bridge.js";
 import { applyCssVariables } from "./settings.js";
-import { executeCommand, handleShellData, removeTab } from "./tabs.js";
+import {
+  executeCommand,
+  handleShellData,
+  removeTab,
+  restoreSession,
+} from "./tabs.js";
 import { openRenameDialog } from "./rename-dialog.js";
 import "./settings-dialog.js";
 import "./sidebar-resize.js";
@@ -34,4 +39,9 @@ Reflect.set(window, "lmux", {
   },
 });
 
-executeCommand({ type: "new-workspace" });
+const session = await bridge.readSession();
+if (session && session.workspaces.length > 0) {
+  await restoreSession(session);
+} else {
+  executeCommand({ type: "new-workspace" });
+}

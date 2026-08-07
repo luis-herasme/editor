@@ -22,6 +22,7 @@ import {
 } from "./workspaces.js";
 import type { Workspace } from "./workspaces.js";
 import type { Command, MarkdownMode } from "../api.js";
+import type { Session } from "../session.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
 import type { ITheme, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
@@ -655,6 +656,64 @@ export function executeCommand(command: Command): void {
       });
       return;
     }
+  }
+}
+
+// Rebuilding what the last run left behind. Not a Command: it is the boot
+// path deciding what to open instead of one empty workspace, and it needs
+// the tab records as it makes them, which no snapshot hands back.
+//
+// A workspace is filled while it is the active one, because xterm can only
+// measure a visible container; the workspace you were last looking at is
+// activated at the end.
+export async function restoreSession(session: Session): Promise<void> {
+  const restored: Workspace[] = [];
+  for (const saved of session.workspaces) {
+    const workspace = createWorkspace();
+    activateWorkspace(workspace);
+    bridge.emitEvent({
+      type: "workspace-opened",
+      id: workspace.id,
+      state: snapshot(),
+    });
+    if (saved.name !== null) {
+      workspace.namePinned = true;
+      setWorkspaceName({
+        workspace,
+        name: saved.name,
+      });
+    }
+    for (const tab of saved.tabs) {
+      if (tab.kind === "markdown") {
+        // awaited one at a time: a document is read from disk, and the tabs
+        // must come back in the order they were in
+        await addMarkdownTab({
+          workspace,
+          filePath: tab.path,
+          baseTabId: undefined,
+          group: undefined,
+        });
+        continue;
+      }
+      createTab({
+        workspace,
+        group: undefined,
+      });
+    }
+    // the store keeps insertion order, so the saved position is the tab
+    const restoredIds = Array.from(workspace.tabs.keys());
+    const activeId = restoredIds.at(saved.activeIndex);
+    if (activeId !== undefined) {
+      const active = workspace.tabs.get(activeId);
+      if (active) {
+        active.panel.api.setActive();
+      }
+    }
+    restored.push(workspace);
+  }
+  const lastActive = restored[session.activeIndex];
+  if (lastActive) {
+    activateWorkspace(lastActive);
   }
 }
 

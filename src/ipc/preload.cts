@@ -25,6 +25,7 @@ const bridge: Bridge = {
   onWorkspaceRenameRequest: (callback) =>
     ipcRenderer.on("workspace:rename-request", (_event, id) => callback(id)),
   readFile: (request) => ipcRenderer.invoke("file:read", request),
+  readSession: () => ipcRenderer.invoke("session:read"),
 };
 
 contextBridge.exposeInMainWorld("bridge", bridge);

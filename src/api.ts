@@ -13,7 +13,7 @@ const splitSideSchema = z.enum(["left", "right", "top", "bottom"]);
 export type SplitSide = z.infer<typeof splitSideSchema>;
 
 // A markdown tab shows the file rendered, or its source as it is on disk.
-const markdownModeSchema = z.enum(["rendered", "raw"]);
+export const markdownModeSchema = z.enum(["rendered", "raw"]);
 export type MarkdownMode = z.infer<typeof markdownModeSchema>;
 
 // `theme` stays a plain string: which names exist is the consumer's business
@@ -121,7 +121,8 @@ export type LmuxEvent =
 
 export type TabInfo =
   | { id: number; title: string; kind: "terminal" }
-  | { id: number; title: string; kind: "markdown"; mode: MarkdownMode };
+  // the file it shows, so an observer (and a restart) knows which document
+  | { id: number; title: string; kind: "markdown"; mode: MarkdownMode; path: string };
 
 // One tab strip and the pane below it. Group ids are opaque handles
 // assigned by the layout engine, unique within their workspace only.
@@ -142,6 +143,7 @@ export type WorkspaceInfo = {
   id: number;
   // the active tab's title, unless an explicit rename pinned it
   name: string;
+  namePinned: boolean; // whether `name` is that rename, or follows the tab
   tabs: TabInfo[]; // this workspace's tabs, in visual order
   layout: LayoutNode | null; // null only while the workspace has no tabs
   activeId: number; // this workspace's own active tab

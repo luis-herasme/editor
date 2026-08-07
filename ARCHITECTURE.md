@@ -63,7 +63,8 @@ showTabMenu(id)              renderer → main   "right-click on tab `id`: show 
 onRenameRequest((id))        main → renderer   "the user picked Rename in tab `id`'s menu"
 showWorkspaceMenu(id)        renderer → main   "right-click on workspace `id`: show its native menu"
 onWorkspaceRenameRequest((id)) main → renderer "the user picked Rename in workspace `id`'s menu"
-readFile({path, baseTabId})  renderer → main   "read this file for the markdown view" (the one request/response pair)
+readFile({path, baseTabId})  renderer → main   "read this file for the markdown view" (request/response)
+readSession()                renderer → main   "what did the last run leave to rebuild?" (request/response)
 ```
 
 Rules that keep this boundary healthy:
@@ -163,6 +164,7 @@ the public interface at the top.
 ```
 src/
   api.ts             the public interface: Command / LmuxEvent / LmuxState / Settings
+  session.ts         what a restart brings back: the schema, and how it is read off the state
   theme.ts           the theme palettes (THEMES) and default settings, imported by both sides
   ipc/               the cable
     bridge.ts          the contract type (window.bridge)
@@ -173,6 +175,7 @@ src/
     menus.ts           app menu + tab context menu; menu items are Command sources
     bus.ts             dispatch() into the renderer; Event intake (the read model)
     files.ts           file:read for the markdown view; resolves against a shell's cwd
+    session-state.ts   the last session on disk: written while closing, read before the page exists
   renderer/
     index.html         the page: title bar, sidebar, the layout root, the modals
     style.css          the page's stylesheet; theme values arrive as custom properties
@@ -754,6 +757,34 @@ change it and update this list.
   parameter and the menus stay compile-checked. And since `dispatch` sends
   to the focused window, the server drives whichever window that is, which
   is fine while there is exactly one and is part of what #12 has to settle.
+
+- **A session is what can honestly be rebuilt, not the state.** (Decided
+  2026-08-07, the second half of the window-geometry entry above.) Quitting
+  used to lose every workspace, tab and document. Main now writes
+  `session.json` beside `window.json` while the window is closing, built from
+  the read model it already keeps, and the page asks for it at boot through
+  one new request/response pair on the cable, `readSession`. If there is
+  nothing to rebuild, boot opens one empty workspace exactly as before.
+  What a session holds is deliberately less than the state: a workspace's
+  tabs in order, a document's path and mode, which tab and workspace you were
+  looking at, and a workspace's name only when a rename pinned it. It
+  carries no ids, because the renderer assigns those as it creates tabs, so a
+  restored tab is a new tab wearing the old contents. A terminal tab carries
+  nothing at all: shells cannot be restored, only respawned, and scrollback
+  is gone either way. Two fields joined the state to make this possible and
+  are worth having on their own: a markdown `TabInfo` now says which `path`
+  it shows, and a `WorkspaceInfo` says whether its `name` is pinned or
+  follows its active tab, which an observer previously could not tell.
+  Restore is not a Command. It is the boot path deciding what to open, it
+  needs the tab records as it makes them rather than a snapshot afterwards,
+  and the bus stays a description of what a user or an agent does.
+  Three things this deliberately does not do, each of which is a separate
+  piece of work if it ever matters: splits are not rebuilt (a workspace comes
+  back as one group holding its tabs, measured, rather than crashing), a
+  respawned shell starts in `$HOME` rather than where it was (capturing the
+  cwd means asking `lsof` per terminal, which is async in a close handler
+  that is not), and a crash loses the session, because the only write is on a
+  clean close.
 
 - **Tests drive the bus from inside the real app.** (Decided 2026-08.)
   `npm test` starts Electron with `src/test/` as its entry, which imports

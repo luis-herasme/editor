@@ -2,6 +2,7 @@
 // shape. The shell protocol carries bytes/sizes/tab ids; the command
 // bus is the one structured channel.
 import type { Command, LmuxEvent } from "../api.js";
+import type { Session } from "../session.js";
 
 export type ShellSizeMessage = {
   id: number;
@@ -37,6 +38,8 @@ export type Bridge = {
   onRenameRequest: (callback: (id: number) => void) => void;
   showWorkspaceMenu: (id: number) => void;
   onWorkspaceRenameRequest: (callback: (id: number) => void) => void;
-  // the only request/response pair on the cable (ipcRenderer.invoke)
+  // the two request/response pairs on the cable (ipcRenderer.invoke)
   readFile: (request: ReadFileRequest) => Promise<ReadFileResult>;
+  // the session the last run left behind, if there is one to rebuild
+  readSession: () => Promise<Session | null>;
 };
