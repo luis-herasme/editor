@@ -113,6 +113,8 @@ export function createWorkspace(): Workspace {
 
   const buttonElement = document.createElement("button");
   buttonElement.className = "workspace-button";
+  buttonElement.role = "tab";
+  buttonElement.ariaSelected = "false";
   buttonElement.addEventListener("click", () => {
     executeCommand({
       type: "activate-workspace",
@@ -221,10 +223,12 @@ export function activateWorkspace(workspace: Workspace): void {
   if (activeWorkspace) {
     activeWorkspace.element.style.display = "none";
     activeWorkspace.buttonElement.classList.remove("active");
+    activeWorkspace.buttonElement.ariaSelected = "false";
   }
   activeWorkspace = workspace;
   workspace.element.style.display = "";
   workspace.buttonElement.classList.add("active");
+  workspace.buttonElement.ariaSelected = "true";
   titleBarElement.textContent = workspace.name;
   // Dockview measured its container while it was hidden, so it holds a zero
   // size; hand it the real one back.
