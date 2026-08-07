@@ -99,6 +99,7 @@ the other end echoes it back.
 | `src/main/shells.ts`           | One PTY per tab: spawn/write/resize/kill, relays data/exit   |
 | `src/main/menus.ts`            | App menu + tab context menu (menu items issue Commands)      |
 | `src/main/bus.ts`              | Commands in via `dispatch()`; Events out into the read model |
+| `src/main/window-state.ts`     | Where the window was last time (size and position)           |
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
 | `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
 | `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first workspace |
