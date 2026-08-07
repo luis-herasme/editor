@@ -10,6 +10,7 @@ import { confirmKilling } from "./dialogs.js";
 import { lmuxState } from "./bus.js";
 import { installAppMenu } from "./menus.js";
 import "./files.js"; // registers file:read
+import "./mcp.js"; // listens on the API socket
 
 // Everything else (file:, and any scheme an OS handler would claim) is
 // dropped rather than handed to the OS.
