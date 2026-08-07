@@ -1,0 +1,15 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # --ignore-scripts: type checking needs neither node-pty's compile nor Electron's binary
+      - run: npm ci --ignore-scripts
+      - run: npm run check
