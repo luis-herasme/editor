@@ -177,6 +177,7 @@ src/
     index.html         the page: title bar, sidebar, the layout root, the modals
     style.css          the page's stylesheet; theme values arrive as custom properties
     index.ts           boot: settings → CSS, cable wiring, the first workspace
+    bridge.ts          the page's globals picked up: window.bridge, once, typed
     workspaces.ts      Workspace store: one Dockview each, the sidebar, the state snapshot
     tabs.ts            Tab store + executeCommand (the consumer), kept behind the bus
     markdown-tab.ts    a document's pane: the toolbar, the two modes, reload, its links
@@ -220,10 +221,17 @@ change it and update this list.
   scale every name should have a greppable `import type` stating where it
   comes from; ambient types that "appear from nowhere" don't pay their way
   once "where is this defined?" becomes a real question. `api.ts` and
-  `bridge.ts` are ordinary modules exporting types; `declare global` is
-  reserved for names that genuinely exist on the global scope at runtime
-  (`window.bridge`, `window.lmux`, xterm's classic-script globals) and
-  lives next to what creates or consumes them. Cost we accept: tsc emits an
+  `bridge.ts` are ordinary modules exporting types. (Amended 2026-08-07:
+  `declare global` used to be the exception, for names that genuinely exist
+  on the global scope at runtime. It is now gone too, and for the same
+  reason it was introduced against: a declared global is still a name that
+  appears from nowhere, and the objection does not weaken just because the
+  runtime really does have one. The page's globals are read where they are
+  used, through `Reflect.get`, with a presence check so a preload that never
+  ran or a script tag that never loaded says which one is missing instead of
+  failing at the first call. `window.bridge` is read once, in
+  `renderer/bridge.ts`, and imported from there like any other module.) Cost
+  we accept: tsc emits an
   empty `dist/ipc/bridge.js` that nothing ever loads. (`api.ts` was the same
   until 2026-08-07, when `Command` became a schema and the file gained a
   runtime half; the types in it are still ordinary exports.)

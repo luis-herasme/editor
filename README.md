@@ -105,6 +105,7 @@ the other end echoes it back.
 | `src/renderer/index.html`      | The page: title bar, sidebar, tab bar, panes, the modals     |
 | `src/renderer/style.css`       | The page's stylesheet (theme values arrive as CSS variables) |
 | `src/renderer/index.ts`        | Renderer boot: settings → CSS, cable wiring, first workspace |
+| `src/renderer/bridge.ts`       | Picks `window.bridge` up off the page once, typed, and exports it |
 | `src/renderer/workspaces.ts`   | Workspace store: one layout each, the sidebar, the snapshot  |
 | `src/renderer/tabs.ts`         | Tab store + operations + `executeCommand` (the consumer)     |
 | `src/renderer/rename-dialog.ts`| The rename modal (tabs and workspaces)                       |

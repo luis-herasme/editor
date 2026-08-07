@@ -40,9 +40,3 @@ export type Bridge = {
   // the only request/response pair on the cable (ipcRenderer.invoke)
   readFile: (request: ReadFileRequest) => Promise<ReadFileResult>;
 };
-
-declare global {
-  interface Window {
-    bridge: Bridge;
-  }
-}

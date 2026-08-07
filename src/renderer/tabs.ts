@@ -1,4 +1,5 @@
 import { getSettings, currentTheme, updateSettings } from "./settings.js";
+import { bridge } from "./bridge.js";
 import { registerMarkdownLinks } from "./markdown-links.js";
 import {
   openMarkdownTab,
@@ -26,9 +27,16 @@ import type { ITheme, Terminal as XtermTerminal } from "@xterm/xterm";
 import type { FitAddon as XtermFitAddon } from "@xterm/addon-fit";
 import type { DockviewGroupPanel, IDockviewPanel } from "dockview";
 
-declare global {
-  const Terminal: typeof XtermTerminal;
-  const FitAddon: { FitAddon: typeof XtermFitAddon };
+// xterm ships classic scripts, so its constructors arrive as page globals
+// rather than as modules (see the script tags in index.html). Picked up the
+// same way the cable is, in renderer/bridge.ts.
+const Terminal: typeof XtermTerminal = Reflect.get(window, "Terminal");
+const FitAddon: { FitAddon: typeof XtermFitAddon } = Reflect.get(
+  window,
+  "FitAddon",
+);
+if (!Terminal || !FitAddon) {
+  throw new Error("xterm's scripts did not load: window.Terminal is missing");
 }
 
 type TabCommon = {
@@ -188,7 +196,7 @@ function buildTabElement(id: number): TabElements {
   tabElement.append(titleElement, closeElement);
   tabElement.addEventListener("contextmenu", (event) => {
     event.preventDefault();
-    window.bridge.showTabMenu(id);
+    bridge.showTabMenu(id);
   });
   return {
     tabElement,
@@ -250,7 +258,7 @@ function createTab({ workspace, group }: CreateTabOptions): void {
     observer,
     fitAddon,
   });
-  window.bridge.emitEvent({
+  bridge.emitEvent({
     type: "tab-opened",
     id,
     state: snapshot(),
@@ -262,20 +270,20 @@ function createTab({ workspace, group }: CreateTabOptions): void {
   fitAddon.fit();
   terminal.focus();
 
-  window.bridge.spawnShell({
+  bridge.spawnShell({
     id,
     cols: terminal.cols,
     rows: terminal.rows,
   });
 
   terminal.onData((data) => {
-    window.bridge.writeToShell({
+    bridge.writeToShell({
       id,
       data,
     });
   });
   terminal.onResize(({ cols, rows }) => {
-    window.bridge.resizeShell({
+    bridge.resizeShell({
       id,
       cols,
       rows,
@@ -329,7 +337,7 @@ async function addMarkdownTab({
     group,
   });
   workspace.tabs.set(id, tab);
-  window.bridge.emitEvent({
+  bridge.emitEvent({
     type: "tab-opened",
     id,
     state: snapshot(),
@@ -369,7 +377,7 @@ export function executeCommand(command: Command): void {
         removeTab(resolved.id);
         return;
       }
-      window.bridge.killShell(resolved.id);
+      bridge.killShell(resolved.id);
       return;
     }
     case "activate-tab": {
@@ -392,7 +400,7 @@ export function executeCommand(command: Command): void {
       if (resolved === undefined) {
         return;
       }
-      window.bridge.writeToShell({
+      bridge.writeToShell({
         id: resolved.id,
         data: command.text,
       });
@@ -422,7 +430,7 @@ export function executeCommand(command: Command): void {
         group: targetGroup,
         index: command.index,
       });
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "tab-moved",
         id: resolved.id,
         state: snapshot(),
@@ -451,7 +459,7 @@ export function executeCommand(command: Command): void {
         group: targetGroup,
         position: command.side,
       });
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "tab-moved",
         id: resolved.id,
         state: snapshot(),
@@ -478,7 +486,7 @@ export function executeCommand(command: Command): void {
       tab.titleElement.textContent = title;
       tab.panel.setTitle(title);
       refreshWorkspaceName(resolved.workspace);
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "tab-retitled",
         id,
         state: snapshot(),
@@ -510,7 +518,7 @@ export function executeCommand(command: Command): void {
           }
         }
       }
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "settings-changed",
         settings,
         state: snapshot(),
@@ -573,7 +581,7 @@ export function executeCommand(command: Command): void {
       } else {
         resolved.workspace.dockview.api.maximizeGroup(resolved.tab.panel);
       }
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "maximize-changed",
         id: resolved.id,
         state: snapshot(),
@@ -583,7 +591,7 @@ export function executeCommand(command: Command): void {
     case "new-workspace": {
       const workspace = createWorkspace();
       activateWorkspace(workspace);
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "workspace-opened",
         id: workspace.id,
         state: snapshot(),
@@ -604,7 +612,7 @@ export function executeCommand(command: Command): void {
         return;
       }
       removeWorkspace(workspace);
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "workspace-closed",
         id: workspace.id,
         state: snapshot(),
@@ -617,7 +625,7 @@ export function executeCommand(command: Command): void {
         return;
       }
       activateWorkspace(workspace);
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "workspace-activated",
         id: workspace.id,
         state: snapshot(),
@@ -640,7 +648,7 @@ export function executeCommand(command: Command): void {
           name,
         });
       }
-      window.bridge.emitEvent({
+      bridge.emitEvent({
         type: "workspace-renamed",
         id: workspace.id,
         state: snapshot(),
@@ -676,7 +684,7 @@ export function removeTab(id: number): void {
   // removing the last tab activates no other panel, so nothing else would
   // take the name off the tab that just left
   refreshWorkspaceName(workspace);
-  window.bridge.emitEvent({
+  bridge.emitEvent({
     type: "tab-closed",
     id,
     state: snapshot(),

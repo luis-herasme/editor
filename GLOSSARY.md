@@ -162,13 +162,21 @@ entire build system; `npm start` is just `tsc && electron .`.
 
 A `.d.ts` file contains only types and compiles to nothing; it's how
 libraries ship types for the compiler (xterm's packages in node_modules do
-this). We used to write our own, but chose plain `.ts` modules with
-explicit `import type` instead: in a growing codebase, every name should
-have a greppable import stating where it comes from. The one thing imports
-can't express is a name that genuinely exists on the global scope at
-runtime: `window.bridge` (preload puts it there) and the
-`Terminal`/`FitAddon` globals (xterm's script tags create them). Those are
-declared with `declare global`, and that's the only thing it's used for.
+this). We don't write our own, and use plain `.ts` modules with explicit
+`import type` instead: in a growing codebase, every name should have a
+greppable import stating where it comes from.
+
+`declare global` is the same idea in a smaller package: it tells the
+compiler that a name exists on the global scope, so `window.bridge` (the
+preload puts it there) or `Terminal` (xterm's script tag creates it) can be
+used without importing anything. We don't use it either, for the reason
+above: whether or not the runtime really has that global, a name nobody
+imported is a name a reader cannot trace. A page global is instead read
+where it is used, with `Reflect.get`, which returns it untyped; the reading
+site checks that it is there, states the type it expects, and exports it.
+`renderer/bridge.ts` is that site for the cable, so every other module says
+`import { bridge }` like it would for anything else, and a preload that
+never ran reports itself rather than failing at the first call.
 
 ## Script vs. module
 

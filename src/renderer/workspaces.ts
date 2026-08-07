@@ -16,16 +16,11 @@ import type {
   IDockviewPanel,
   SerializedDockview,
 } from "dockview";
+import { bridge } from "./bridge.js";
 import { requireElement } from "./dom.js";
 
 type SerializedGridNode = SerializedDockview["grid"]["root"];
 type SerializedGroup = Exclude<SerializedGridNode["data"], unknown[]>;
-
-declare global {
-  interface Window {
-    dockview: typeof import("dockview");
-  }
-}
 
 export type Workspace = {
   id: number;
@@ -49,7 +44,15 @@ const titleBarElement = requireElement("title-bar");
 const layoutElement = requireElement("layout");
 const workspaceListElement = requireElement("workspace-list");
 
-const dockviewLibrary = window.dockview;
+// dockview is a classic script too, so it arrives as a page global; see
+// renderer/bridge.ts for why these are read rather than declared.
+const dockviewLibrary: typeof import("dockview") = Reflect.get(
+  window,
+  "dockview",
+);
+if (!dockviewLibrary) {
+  throw new Error("dockview's script did not load: window.dockview is missing");
+}
 
 // The element a panel shows is built by the caller of addPanel; Dockview's
 // factories only ever hand it over.
@@ -123,7 +126,7 @@ export function createWorkspace(): Workspace {
   });
   buttonElement.addEventListener("contextmenu", (event) => {
     event.preventDefault();
-    window.bridge.showWorkspaceMenu(id);
+    bridge.showWorkspaceMenu(id);
   });
   workspaceListElement.append(buttonElement);
 
@@ -209,7 +212,7 @@ export function createWorkspace(): Workspace {
     workspace.activeId = tabId;
     refreshWorkspaceName(workspace);
     focusActiveTab();
-    window.bridge.emitEvent({
+    bridge.emitEvent({
       type: "tab-activated",
       id: tabId,
       state: snapshot(),
@@ -253,7 +256,7 @@ export function removeWorkspace(workspace: Workspace): void {
     if (tab.kind !== "terminal") {
       continue;
     }
-    window.bridge.killShell(tabId);
+    bridge.killShell(tabId);
     tab.observer.disconnect();
     tab.terminal.dispose();
   }

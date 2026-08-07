@@ -59,9 +59,16 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
   primitives too, so every named type in the codebase reads the same way and
   no reader has to work out why this one is declared differently. The single
   exception is declaration merging, which is the only way to augment a type
-  that already exists and which only interfaces have: `declare global {
-  interface Window { ... } }` for a real runtime global, and the same for
-  augmenting a library's own type.
+  that already exists and which only interfaces have, as in a `declare
+  module` block widening a library's own type.
+- Never `declare global`. It creates a name that appears from nowhere, which
+  is the same objection as hand-written `.d.ts` files: at scale, every name
+  should carry a greppable import saying where it comes from. A value that
+  genuinely arrives on the page as a global (a preload's bridge, a classic
+  script's constructor) is read once with `Reflect.get`, checked for
+  presence so a missing one says so, given its type at that single site, and
+  exported like anything else. Installing one goes the same way, with
+  `Reflect.set`.
 - Never use type assertions (`as`). Use Zod validation, type narrowing, or a validating library constructor instead. `as const` is the accepted exception.
 - Never use the non-null assertion operator (`!`). Use a runtime guard or restructure so the type narrows naturally.
 - Default to Zod for runtime narrowing of `unknown` values; never hand-rolled `typeof x === 'object' && 'field' in x` chains.
@@ -143,4 +150,4 @@ A terminal emulator built with xterm.js + Electron. It is explicitly a **learnin
 - **Minimal solution first.** Write the smallest working version of a feature. No abstractions for features that don't exist yet, no build tooling unless it becomes necessary. Refactor only when a new feature actually demands it.
 - **Minimal tooling.** Default to the most boring, most widely-known tool. No extra package managers, task runners, or config layers unless a concrete problem forces it.
 - **Native ESM only, no CommonJS.** Hand-written `require()` is a code smell. Everything compiles to native ESM (`"type": "module"`, tsconfig `module: nodenext`); write `import` with explicit `.js` extensions. The single sanctioned exception is `src/preload.cts` (Electron's sandbox requires a CommonJS preload; tsc emits it as `.cjs`). Prefer removing the cause of a wart over documenting the wart.
-- **No hand-written `.d.ts` files.** Shared types live in ordinary `.ts` modules (e.g. `api.ts`) using `export type` / `import type`, so every name has a greppable import stating where it comes from. Reserve `declare global` for names that genuinely exist on the runtime global scope (`window.terminal`, `window.lmux`, xterm's classic-script globals), placed next to their creator/consumer. Empty emitted `dist/*.js` for types-only modules is acceptable.
+- **No hand-written `.d.ts` files.** Shared types live in ordinary `.ts` modules (e.g. `api.ts`) using `export type` / `import type`, so every name has a greppable import stating where it comes from. `declare global` is not used at all (see the rule above): the page's globals are read where they are consumed, `window.bridge` once in `renderer/bridge.ts` and imported from there. Empty emitted `dist/*.js` for types-only modules is acceptable.

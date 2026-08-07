@@ -1,6 +1,7 @@
 // Everything a markdown tab does: its pane, its two modes, re-reading the
 // file, and the links inside the document. The tab record itself, and the
 // store holding it, stay in tabs.ts.
+import { bridge } from "./bridge.js";
 import { renderMarkdown } from "./markdown.js";
 import { executeCommand } from "./tabs.js";
 import type { MarkdownTab, TabElements } from "./tabs.js";
@@ -176,7 +177,7 @@ export async function openMarkdownTab({
   baseTabId,
   group,
 }: OpenMarkdownTabOptions): Promise<MarkdownTab> {
-  const result = await window.bridge.readFile({
+  const result = await bridge.readFile({
     path: filePath,
     baseTabId,
   });
@@ -240,7 +241,7 @@ export function setMarkdownMode({
   }
   tab.mode = mode;
   showMarkdown(tab);
-  window.bridge.emitEvent({
+  bridge.emitEvent({
     type: "markdown-mode-changed",
     id,
     state: snapshot(),
@@ -256,7 +257,7 @@ export async function reloadMarkdownTab({
   id,
   tab,
 }: ReloadMarkdownTabOptions): Promise<void> {
-  const result = await window.bridge.readFile({
+  const result = await bridge.readFile({
     path: tab.filePath,
     baseTabId: tab.baseTabId,
   });
@@ -266,7 +267,7 @@ export async function reloadMarkdownTab({
   });
   // an edit shouldn't cost you your place in a long document
   await redrawMarkdown(tab);
-  window.bridge.emitEvent({
+  bridge.emitEvent({
     type: "markdown-reloaded",
     id,
     state: snapshot(),
