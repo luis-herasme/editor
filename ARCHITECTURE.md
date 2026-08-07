@@ -194,8 +194,19 @@ change it and update this list.
   which tab is showing); main knows nothing but ids.
 - **Shell lifecycle is symmetric, per session.** Closing a tab kills its
   shell; a shell exiting (`exit`, ⌘W) removes its tab: one removal path,
-  always triggered by `onExit`. The *last* shell exiting closes the window,
-  and closing the window kills every remaining shell.
+  always triggered by `onExit`. Closing the window kills every remaining
+  shell.
+- **The window closes when the last tab does, not the last shell.**
+  (Replaced "the last shell exiting closes the window", which predated both
+  Markdown tabs and workspaces.) Counting PTYs was main describing the app
+  in terms of the one resource it happens to own, and it broke as soon as a
+  tab could exist without a shell: exiting the last terminal closed the
+  window out from under a Markdown tab, or from under an entire other
+  workspace. Main now reads the condition off the snapshot it already keeps
+  (`bus.ts`): on a `tab-closed` or `workspace-closed` Event, if no workspace
+  has any tabs left, the window closes. No other Event counts, because a new
+  workspace is legitimately empty for the instant between its own Event and
+  its first tab's.
 - **The renderer requests the first shell: the old startup race is gone.**
   Main used to spawn the shell after `loadFile` resolved, so output couldn't
   arrive before the page listened. With tabs, creation starts *in* the page

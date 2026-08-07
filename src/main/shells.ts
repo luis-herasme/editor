@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { execFile } from "child_process";
 import * as os from "os";
 import * as pty from "node-pty";
@@ -39,9 +39,6 @@ ipcMain.on("shell:spawn", (event, size: ShellSizeMessage) => {
       return;
     }
     page.send("shell:exited", size.id);
-    if (shells.size === 0) {
-      BrowserWindow.fromWebContents(page)?.close();
-    }
   });
 });
 
