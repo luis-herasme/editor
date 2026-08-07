@@ -2,7 +2,10 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <!-- style-src 'unsafe-inline': dockview and xterm inject <style> blocks -->
+    <!-- style-src 'unsafe-inline': dockview and xterm inject <style> blocks
+         at runtime, with no way to carry a nonce. Electron warns at boot
+         that this policy is missing or unsafe; it is neither, it just reads
+         response headers and a file:// page has none (ARCHITECTURE.md). -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'"
