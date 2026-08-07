@@ -7,6 +7,7 @@
   "scripts": {
     "start": "tsc && electron .",
     "check": "tsc --noEmit",
+    "test": "tsc && electron dist/test/index.js",
     "rebuild": "electron-rebuild -f -w node-pty",
     "package": "tsc && electron-builder --mac --dir",
     "dist": "tsc && electron-builder --mac"
@@ -39,6 +40,7 @@
     "productName": "lmux",
     "files": [
       "dist/**/*",
+      "!dist/test",
       "src/renderer/*.html",
       "src/renderer/*.css",
       "package.json"

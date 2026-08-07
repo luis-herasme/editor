@@ -12,7 +12,9 @@ npm run rebuild   # recompile node-pty for Electron (see "Native module" in the 
 npm start         # type-checks + compiles src/ to dist/, then launches
 ```
 
-`npm run check` type-checks without launching.
+`npm run check` type-checks without launching. `npm test` drives the command
+bus inside the real app and asserts on the state that comes back; it opens a
+window while it runs, and exits non-zero if a case fails.
 
 ## Build it
 
@@ -114,6 +116,8 @@ the other end echoes it back.
 | `src/renderer/markdown-links.ts`| Terminal link provider: Cmd+click a `*.md` path opens it    |
 | `src/main/files.ts`            | `file:read` for the markdown view (resolves via shell cwd)   |
 | `src/renderer/dom.ts`          | `requireElement`: strict, typed lookups of the page's fixed elements |
+| `src/test/harness.ts`          | Boots the real app for the suite, waits for Events, tallies failures |
+| `src/test/suite.ts`            | The cases: Commands in, state snapshots asserted on           |
 | `tsconfig.json`                | Compiler settings; `tsc` mirrors `src/` into `dist/` 1:1     |
 
 There is deliberately no bundler, no framework, and no abstraction for

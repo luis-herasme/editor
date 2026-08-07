@@ -114,14 +114,27 @@ fact: "tab 3 opened", with a snapshot of the resulting state). The two
 unions in `api.ts` *are* lmux's public API; that file is the one
 to read first.
 
+```mermaid
+flowchart LR
+    S["Command sources:
+    the app menu today,
+    a local server tomorrow"] --> M
+    M["main
+    dispatch(command)"] -->|command| R
+    R["renderer
+    executeCommand: one switch,
+    the only place state changes"] -->|"event, carrying
+    a state snapshot"| M
+    M --> K["main's read model:
+    whatever arrived last"]
 ```
-        dispatch(command)                executeCommand(command)
-  main ────────────────────► renderer ──── one switch, the only
-   ▲                            │           place state changes
-   │  sources: app menu today,  │
-   │  a local server tomorrow   ▼
-   └──────────────────────── emitEvent(event with state snapshot)
-```
+
+A Command is a request, not a transaction: it is answered with however many
+Events its work produced, which may be none. `close-workspace` on the last
+workspace returns silently, an already-active workspace activates to
+nothing, and a workspace renaming itself after its tab did rides out inside
+that tab's Event rather than announcing itself twice. An observer waits for
+the state it wants, rather than for a reply.
 
 The rule that keeps the API honest: **every UI affordance goes through a
 command**. The × button, the + button, clicking a tab, ⌘T: none of them
@@ -174,6 +187,11 @@ src/
     markdown.ts        GitHub-look rendering (markdown-it + DOMPurify)
     markdown-links.ts  the terminal link provider: Cmd+click a *.md path
     dom.ts             requireElement: strict lookups of index.html's fixed elements
+  test/
+    index.ts           the entry Electron starts; hands over once the app is ready
+    harness.ts         boots the real app, waits for Events, tallies failures
+    suite.ts           the cases: Commands in, state snapshots asserted on
+    fixtures/          files the cases open, kept identical between runs
 ```
 
 A reader who knows the architecture can predict where anything lives; a
@@ -648,6 +666,39 @@ change it and update this list.
   it. Cost we accept: a second heavyweight process, and extensions come from
   the Open VSX registry rather than Microsoft's marketplace (whose license
   covers only official VS Code builds).
+
+- **Tests drive the bus from inside the real app.** (Decided 2026-08.)
+  `npm test` starts Electron with `src/test/` as its entry, which imports
+  `main/index.ts` for the ordinary boot: the same window, preload, menu and
+  shells `npm start` produces, with no mock anywhere. A case is then
+  "send these Commands, assert on the state that comes back", using the
+  snapshot main already keeps as its read model, which is the same thing the
+  future server will answer from. Only two facts are read out of the page
+  instead: a terminal's fitted row count and a document's scroll position,
+  which the state deliberately does not carry. Those go through
+  `executeJavaScript`, the one place the project accepts an unverified code
+  string, because nothing typed can express a DOM read across processes.
+  Four properties of the host had to be discovered rather than assumed, and
+  all four are load-bearing: Electron holds the `ready` event until its ESM
+  entry has finished evaluating, so a top-level `await app.whenReady()`
+  deadlocks and the entry file exists only to hand over once ready has
+  fired; Commands go straight to the window rather than through `dispatch`,
+  which targets whichever window has OS focus and silently drops everything
+  when that is none; `node:test`'s root suite never finishes inside an app
+  (its event loop never drains), so it prints no summary and sets no exit
+  code, and the harness counts and prints failures itself; and the app
+  quitting mid-run counts as a failure rather than an end, or a regression
+  that empties the window would exit 0 having reported nothing. A run works
+  in a throwaway profile under the temp directory, so it never reads or
+  writes the settings and geometry of the app you actually use. Each case
+  was then checked against a deliberately broken build: removing the
+  last-workspace guard, the refit on activation, the scroll restore, the
+  rename pin, or the shared tab-id counter turns exactly one case red, which
+  is the only evidence that a passing suite means anything. Two things the
+  harness still cannot drive stay manual, for the reasons in the decisions
+  above: native HTML5 drags and pointer capture. The menu path is a third,
+  since it depends on OS focus. CI does not run this yet: `check.yml` runs on
+  Linux, where Electron needs a window server.
 
 ## Where future features will live
 
