@@ -1,16 +1,21 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { execFile } from "child_process";
 import * as os from "os";
+import * as path from "path";
 import * as pty from "node-pty";
 import type { ShellDataMessage, ShellSizeMessage } from "../ipc/bridge.js";
 
 const shells = new Map<number, pty.IPty>();
 
+let shellPath = process.env.SHELL;
+if (!shellPath) {
+  shellPath = "/bin/zsh";
+}
+// A PTY reports the program currently in its foreground. While that is the
+// shell we spawned, the tab is idle; any other name is something running.
+const SHELL_NAME = path.basename(shellPath);
+
 ipcMain.on("shell:spawn", (event, size: ShellSizeMessage) => {
-  let shellPath = process.env.SHELL;
-  if (!shellPath) {
-    shellPath = "/bin/zsh";
-  }
   const shell = pty.spawn(shellPath, ["-l"], {
     name: "xterm-256color",
     cols: size.cols,
@@ -83,6 +88,18 @@ export function getShellCwd(id: number): Promise<string | undefined> {
       },
     );
   });
+}
+
+export function runningProcessNames(tabIds: number[]): string[] {
+  const names: string[] = [];
+  for (const id of tabIds) {
+    const shell = shells.get(id);
+    if (!shell || shell.process === SHELL_NAME) {
+      continue;
+    }
+    names.push(shell.process);
+  }
+  return names;
 }
 
 // closing the window leaves no orphan processes

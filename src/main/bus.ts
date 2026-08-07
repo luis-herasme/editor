@@ -6,7 +6,8 @@ export function dispatch(command: Command): void {
 }
 
 // Read model: every Event carries a full snapshot, so the latest is truth.
-let lmuxState: LmuxState = {
+// A live binding, so importers always read the current value.
+export let lmuxState: LmuxState = {
   workspaces: [],
   activeWorkspaceId: -1,
 };
