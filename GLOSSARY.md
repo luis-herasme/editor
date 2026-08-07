@@ -361,3 +361,15 @@ and the future agent. The one exception is clicking a tab to activate it:
 that's focus, not layout, and the mousedown that activates is the same one
 that begins a drag, so activation is applied by Dockview and announced on
 the bus afterwards as a `tab-activated` Event.
+
+## Mutation testing (why a passing test means anything)
+
+A test that has never failed is a claim, not a check. Mutation testing is
+the cheapest way to settle it: break the behaviour on purpose, in the
+source, one change at a time, and confirm the test that claims to cover it
+turns red. Delete the guard that stops the last workspace from closing, or
+the line that restores a document's scroll position, then run the suite. A
+case that stays green under its own mutation is testing something other
+than what its name says, which is worse than having no case at all, because
+it will be believed. The mutations are thrown away afterwards; only the
+knowledge that each case bites is kept.
