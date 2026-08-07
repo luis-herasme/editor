@@ -21,7 +21,12 @@ import {
   workspaces,
 } from "./workspaces.js";
 import type { Workspace } from "./workspaces.js";
-import type { Command, MarkdownMode } from "../api.js";
+import type {
+  Command,
+  MarkdownMode,
+  ScreenRequest,
+  ScreenResult,
+} from "../api.js";
 import type { Session } from "../session.js";
 import type { ShellDataMessage } from "../ipc/bridge.js";
 import type { ITheme, Terminal as XtermTerminal } from "@xterm/xterm";
@@ -657,6 +662,72 @@ export function executeCommand(command: Command): void {
       return;
     }
   }
+}
+
+// What a tab shows, read out of xterm's own grid rather than off the wire:
+// the escape sequences are already interpreted here, into exactly the
+// characters the human is looking at. Not a Command, because there is no
+// button that reads a pane (a person reads by looking), and because a
+// Command is answered with a state snapshot broadcast to every observer,
+// which is the wrong shape for one caller asking about one tab.
+export function readScreen(request: ScreenRequest): ScreenResult {
+  const found = findTab(request.tabId);
+  if (found === undefined) {
+    return { kind: "no-such-tab" };
+  }
+  if (found.tab.kind === "markdown") {
+    return {
+      kind: "markdown",
+      path: found.tab.filePath,
+      mode: found.tab.mode,
+    };
+  }
+  const buffer = found.tab.terminal.buffer.active;
+  let rowCount = found.tab.terminal.rows;
+  if (request.rows !== undefined) {
+    rowCount = request.rows;
+  }
+  // The bottom of the buffer, not of the viewport: an agent asking what a
+  // command printed wants the newest output, wherever the human has
+  // scrolled to. On the alternate buffer there is no scrollback, so this is
+  // the painted screen and nothing else.
+  let top = buffer.length - rowCount;
+  if (top < 0) {
+    top = 0;
+  }
+
+  const lines: string[] = [];
+  for (let row = top; row < buffer.length; row++) {
+    const line = buffer.getLine(row);
+    if (line === undefined) {
+      continue;
+    }
+    // A line too long for the width is stored as several rows. Trimming the
+    // right of one whose successor continues it would eat the spaces at the
+    // seam, so only the last row of a run is trimmed.
+    const next = buffer.getLine(row + 1);
+    let continues = false;
+    if (next !== undefined && next.isWrapped) {
+      continues = true;
+    }
+    const text = line.translateToString(!continues);
+    const previous = lines.at(-1);
+    if (line.isWrapped && previous !== undefined) {
+      lines[lines.length - 1] = previous + text;
+      continue;
+    }
+    lines.push(text);
+  }
+  // the empty rows below the last output are the terminal's, not the
+  // shell's, and say nothing
+  while (lines.at(-1) === "") {
+    lines.pop();
+  }
+  return {
+    kind: "terminal",
+    lines,
+    alternate: buffer.type === "alternate",
+  };
 }
 
 // Rebuilding what the last run left behind. Not a Command: it is the boot

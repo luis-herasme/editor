@@ -91,6 +91,11 @@ try {
 await import("../main/index.js");
 await app.whenReady();
 
+// Dynamic for the same reason main is: the path is computed off the profile
+// set above, and a static import would be evaluated before that ran.
+const { SOCKET_PATH } = await import("../main/mcp.js");
+export const API_SOCKET_PATH = SOCKET_PATH;
+
 const openWindows = BrowserWindow.getAllWindows();
 if (openWindows.length === 0) {
   throw new Error("lmux booted without a window");

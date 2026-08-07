@@ -386,12 +386,33 @@ knowledge that each case bites is kept.
 
 A socket that lives in the filesystem as a file rather than on a network
 port. Two processes on the same machine talk through it exactly as they
-would over TCP, so ordinary HTTP can run on top, but it is never reachable
-from another machine and never from a web page. Its access control is the
-file's own permissions, which is why the API server design chooses one: a
-loopback port is open to every process on the machine and needs a
-credential invented to guard it, while a socket file at 0600 is already
-restricted to the user who owns it.
+would over TCP, but it is never reachable from another machine and never
+from a web page. Its access control is the file's own permissions, which is
+why the API socket is one: a loopback port is open to every process on the
+machine and needs a credential invented to guard it, while a socket file at
+0600, in a directory macOS already keeps at 0700, is restricted to the user
+who owns it and needs nothing else.
+
+## JSON-RPC
+
+A convention for calling a function in another process: send an object
+saying which `method` and which `params`, get one back carrying either a
+`result` or an `error`, matched to the call by the `id` you chose. A message
+with no `id` is a *notification*, which is acted on and never answered.
+It says nothing about how the bytes travel, so the same messages work over
+a pipe, a socket, or HTTP. lmux frames them one per line, which is what MCP
+over a stream calls for.
+
+## MCP (Model Context Protocol)
+
+The convention an LLM agent uses to discover and call tools someone else
+wrote. A server answers `initialize` with what it can do, `tools/list` with
+each tool's name, description and a JSON Schema for its arguments, and
+`tools/call` by running one. It is JSON-RPC, so a unix socket is a complete
+transport and `nc -U` is a complete client: lmux speaks MCP on its socket
+directly, and there is no separate server to install. lmux's tool schemas
+are generated from `commandSchema` in `api.ts`, so a new Command becomes a
+new agent capability with nothing to update by hand.
 
 ## Session (what survives a quit)
 

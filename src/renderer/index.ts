@@ -4,6 +4,7 @@ import { applyCssVariables } from "./settings.js";
 import {
   executeCommand,
   handleShellData,
+  readScreen,
   removeTab,
   restoreSession,
 } from "./tabs.js";
@@ -15,6 +16,12 @@ applyCssVariables();
 
 bridge.onCommand(executeCommand);
 bridge.onShellData(handleShellData);
+bridge.onScreenRead(({ readId, request }) => {
+  bridge.answerScreenRead({
+    readId,
+    result: readScreen(request),
+  });
+});
 bridge.onShellExit(removeTab);
 bridge.onRenameRequest((id) => {
   openRenameDialog({
