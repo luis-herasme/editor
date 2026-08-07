@@ -1,7 +1,9 @@
 import { app, BrowserWindow, shell } from "electron";
+import type { BrowserWindowConstructorOptions } from "electron";
 import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
+import { savedWindowBounds, saveWindowBounds } from "./window-state.js";
 import { confirmKilling } from "./dialogs.js";
 import { lmuxState } from "./bus.js";
 import { installAppMenu } from "./menus.js";
@@ -22,7 +24,7 @@ function openExternally(url: string): void {
 }
 
 function createWindow(): void {
-  const browserWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     width: 900,
     height: 600,
     // default theme's color, since the chosen one lives in localStorage
@@ -31,7 +33,15 @@ function createWindow(): void {
     webPreferences: {
       preload: path.join(import.meta.dirname, "../ipc/preload.cjs"),
     },
-  });
+  };
+  const saved = savedWindowBounds();
+  if (saved) {
+    options.x = saved.x;
+    options.y = saved.y;
+    options.width = saved.width;
+    options.height = saved.height;
+  }
+  const browserWindow = new BrowserWindow(options);
 
   browserWindow.on("close", (event) => {
     const tabIds: number[] = [];
@@ -45,10 +55,13 @@ function createWindow(): void {
       tabIds,
       action: "Close Window",
     });
-    if (proceed) {
+    if (!proceed) {
+      event.preventDefault();
       return;
     }
-    event.preventDefault();
+    // only once the close is really happening, and the normal bounds, so a
+    // zoomed window remembers the size it unzooms to
+    saveWindowBounds(browserWindow.getNormalBounds());
   });
 
   browserWindow.on("closed", killAllShells);

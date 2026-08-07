@@ -250,6 +250,19 @@ change it and update this list.
   structured channel pierces the bytes-and-ids rule (typed and
   compile-checked in `api.ts`), and UI clicks take one extra hop through
   the switch.
+- **The window remembers where it was; main owns that file.** (Decided
+  2026-08.) Size and position persist in `window.json` under Electron's
+  userData directory, written on close and read before the window is
+  created. It cannot live in localStorage with the other settings, because
+  main has to know the geometry *before* a page exists to ask (the same
+  ordering problem that makes the pre-paint background the default theme's).
+  The file is untrusted input like any other, so it is parsed through a zod
+  schema, and four things all mean "use the defaults": no file, an
+  unreadable one, one that fails the schema, and bounds that no longer
+  overlap any display, which is what happens when a second monitor is
+  unplugged between runs. Saving uses the window's *normal* bounds, so a
+  zoomed window remembers the size it unzooms to. Cost we accept: the write
+  happens on close, so a crash forgets the last move.
 - **Login shell (`zsh -l`), spawned in `$HOME`.** The app should feel
   identical to Terminal.app on first launch: same prompt, same PATH.
 - **xterm.js and node-pty do the hard parts.** Escape-sequence parsing and
