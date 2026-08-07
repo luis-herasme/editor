@@ -571,6 +571,27 @@ change it and update this list.
   numbered items are static labels, not workspace names: the menu is built
   once at startup and a name can change while it is on screen. A position
   with no workspace behind it does nothing.
+- **macOS only for now, and the debt is written down.** (Decided 2026-08.)
+  Supporting one platform well beats three badly while this is a learning
+  project, and every assumption below was the simplest thing that worked.
+  The intent is still to run elsewhere eventually, so the rule (in
+  AGENTS.md) is that a change relying on something another platform lacks
+  gets called out when it is made rather than discovered later. The
+  running list, which is also the porting checklist:
+
+  | Assumption | Where | What another platform needs |
+  | --- | --- | --- |
+  | `lsof` to read a shell's cwd | `main/shells.ts` | `/proc/<pid>/cwd` on Linux; no direct equivalent on Windows |
+  | `titleBarStyle: "hiddenInset"`, and a 36px strip sized for the traffic lights | `main/index.ts`, `style.css` | a non-inset title bar, or the native one |
+  | `/bin/zsh` fallback, spawned `-l` | `main/shells.ts` | `$SHELL` is usually right; Windows needs a different shell entirely |
+  | `Menlo` as the default terminal font | `theme.ts` | a font that exists there |
+  | `role: "appMenu"` | `main/menus.ts` | macOS puts the app menu first; other platforms do not have one |
+  | ⌘/⇧⌘/⌃ typed into tooltips and menu labels | `api.ts`, `tabs.ts`, `workspaces.ts`, `index.html` | labels computed per platform (the accelerators themselves already use `CmdOrCtrl`) |
+
+  Note the last row's asymmetry: the *behavior* is already portable because
+  menu accelerators are declared `CmdOrCtrl`, and only the *text* people
+  read is hardcoded. That is the cheapest kind of debt and the easiest to
+  forget.
 - **VS Code view: embed openvscode-server, when we build it.** (Decided
   2026-08 after research; not built yet.) The full VS Code experience comes
   from spawning [openvscode-server](https://github.com/gitpod-io/openvscode-server)
