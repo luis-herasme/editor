@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import * as path from "path";
 import { THEMES, DEFAULT_SETTINGS } from "../theme.js";
 import { killAllShells } from "./shells.js";
@@ -6,6 +6,20 @@ import { confirmKilling } from "./dialogs.js";
 import { lmuxState } from "./bus.js";
 import { installAppMenu } from "./menus.js";
 import "./files.js"; // registers file:read
+
+// Everything else (file:, and any scheme an OS handler would claim) is
+// dropped rather than handed to the OS.
+const EXTERNAL_PROTOCOLS = ["http:", "https:", "mailto:"];
+
+function openExternally(url: string): void {
+  if (!URL.canParse(url)) {
+    return;
+  }
+  if (!EXTERNAL_PROTOCOLS.includes(new URL(url).protocol)) {
+    return;
+  }
+  shell.openExternal(url);
+}
 
 function createWindow(): void {
   const browserWindow = new BrowserWindow({
@@ -38,6 +52,17 @@ function createWindow(): void {
   });
 
   browserWindow.on("closed", killAllShells);
+
+  // The page is the app: a navigation would replace the whole UI, shells
+  // and all. Links leave through the browser instead.
+  browserWindow.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault();
+    openExternally(url);
+  });
+  browserWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openExternally(url);
+    return { action: "deny" };
+  });
 
   browserWindow.loadFile(
     path.join(import.meta.dirname, "../../src/renderer/index.html"),

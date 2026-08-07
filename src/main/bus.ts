@@ -11,6 +11,18 @@ export let lmuxState: LmuxState = {
   workspaces: [],
   activeWorkspaceId: -1,
 };
-ipcMain.on("event", (_event, event: LmuxEvent) => {
-  lmuxState = event.state;
+
+ipcMain.on("event", (event, lmuxEvent: LmuxEvent) => {
+  lmuxState = lmuxEvent.state;
+  // Only a close can empty the app: a new workspace is momentarily empty
+  // between its own Event and its first tab's, and must not count.
+  if (lmuxEvent.type !== "tab-closed" && lmuxEvent.type !== "workspace-closed") {
+    return;
+  }
+  for (const workspace of lmuxState.workspaces) {
+    if (workspace.tabs.length > 0) {
+      return;
+    }
+  }
+  BrowserWindow.fromWebContents(event.sender)?.close();
 });

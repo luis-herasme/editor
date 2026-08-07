@@ -82,7 +82,13 @@ Rules that keep this boundary healthy:
    exposing Node.js to the page.
 
 This is also the security model (see "Preload script" in the glossary): the
-page can only ever do what these functions allow.
+page can only ever do what these functions allow. One rule outside the
+bridge serves the same purpose: **the page is never allowed to navigate.**
+The window *is* the app, so following a link would replace the sidebar,
+the workspaces and every terminal with a web page, unrecoverably. Main
+cancels every `will-navigate` and denies every window-open, handing http,
+https and mailto URLs to the browser instead and dropping the rest; the
+renderer never decides what may reach the OS.
 
 ## The command bus: the public interface
 
@@ -145,6 +151,7 @@ src/
     index.ts           boot: settings → CSS, cable wiring, the first workspace
     workspaces.ts      Workspace store: one Dockview each, the sidebar, the state snapshot
     tabs.ts            Tab store + executeCommand (the consumer), kept behind the bus
+    markdown-tab.ts    a document's pane: the toolbar, the two modes, reload, its links
     rename-dialog.ts   the rename modal
     settings.ts        the current settings: value, persistence, hand-off to CSS
     settings-dialog.ts the settings modal; controls are Command sources
@@ -194,8 +201,19 @@ change it and update this list.
   which tab is showing); main knows nothing but ids.
 - **Shell lifecycle is symmetric, per session.** Closing a tab kills its
   shell; a shell exiting (`exit`, ⌘W) removes its tab: one removal path,
-  always triggered by `onExit`. The *last* shell exiting closes the window,
-  and closing the window kills every remaining shell.
+  always triggered by `onExit`. Closing the window kills every remaining
+  shell.
+- **The window closes when the last tab does, not the last shell.**
+  (Replaced "the last shell exiting closes the window", which predated both
+  Markdown tabs and workspaces.) Counting PTYs was main describing the app
+  in terms of the one resource it happens to own, and it broke as soon as a
+  tab could exist without a shell: exiting the last terminal closed the
+  window out from under a Markdown tab, or from under an entire other
+  workspace. Main now reads the condition off the snapshot it already keeps
+  (`bus.ts`): on a `tab-closed` or `workspace-closed` Event, if no workspace
+  has any tabs left, the window closes. No other Event counts, because a new
+  workspace is legitimately empty for the instant between its own Event and
+  its first tab's.
 - **Killing a shell that is busy asks first.** (Decided 2026-08.) Closing
   a window or a workspace ends every shell in it, and a shell ends
   whatever is running inside it: a build, an ssh session, an editor with
@@ -462,7 +480,12 @@ change it and update this list.
   accept: the page can now ask main to read any file (fine for a personal
   tool; revisit before any remote surface exists), the last *shell*
   exiting still closes the window even if markdown tabs remain, and the
-  wrapped-row index math assumes single-width characters.
+  wrapped-row index math assumes single-width characters. Links *inside* a
+  rendered document (added 2026-08 with the navigation guard above) follow
+  the same door: a relative `*.md` link issues `open-markdown` resolved
+  against the directory of the document holding it, so a doc tree is
+  browsable in place, while anything carrying a scheme is left to main and
+  every other relative path is ignored rather than followed.
 - **A markdown tab can show the file instead of the document, and can
   re-read it.** (Decided 2026-08.) Two buttons in a toolbar at the top of
   the pane: one swaps between the rendering and the file's own text, the
