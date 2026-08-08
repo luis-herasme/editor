@@ -577,7 +577,11 @@ change it and update this list.
   own pane layout, its own tabs, its own shells (see the glossary). The
   sidebar, which held only the settings gear, becomes their list: one row
   per workspace carrying its whole name, the active one accented, the gear
-  pushed to the bottom. Names, not numbers, because the name is the
+  pushed to the bottom. The empty strip between the two opens a workspace
+  as well, on a single click: it is the sidebar's own box, nothing there is
+  draggable or selectable, so a click that lands on it can only have meant
+  the + button, which it makes as tall as the column instead of one row.
+  Names, not numbers, because the name is the
   workspace's identity: a numbered strip made a rename invisible in the one
   place you pick a workspace from. A workspace takes its name from its
   active tab, the same relationship a tab has with its shell's OSC title

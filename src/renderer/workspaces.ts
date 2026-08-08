@@ -417,6 +417,17 @@ requireElement("new-workspace-button").addEventListener("click", () => {
   executeCommand({ type: "new-workspace" });
 });
 
+// The empty strip under the list belongs to the sidebar itself, so a click
+// whose target is the sidebar and not one of its buttons landed there, and
+// reads as the same request the + button makes.
+const sidebarElement = requireElement("sidebar");
+sidebarElement.addEventListener("click", (event) => {
+  if (event.target !== sidebarElement) {
+    return;
+  }
+  executeCommand({ type: "new-workspace" });
+});
+
 type BuildLayoutOptions = {
   workspace: Workspace;
   node: SerializedGridNode;

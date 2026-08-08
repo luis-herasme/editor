@@ -57,6 +57,10 @@ const VISIBLE_DOCUMENT = `(() => {
   return null;
 })()`;
 
+// A click whose target is the sidebar itself is what landing on the empty
+// strip produces, and the only thing the listener reads.
+const CLICK_SIDEBAR = `document.getElementById("sidebar").click()`;
+
 const rowCountsSchema = z.array(z.number().int());
 const scrollTopSchema = z.number();
 const refusedSchema = z.boolean();
@@ -403,6 +407,29 @@ const suite = describe("the command bus", () => {
         findWorkspace({ state: unpinned.state, id: workspace.id })?.name,
         "linker",
         "unpinning left the workspace with its pinned name",
+      );
+    },
+  });
+
+  busTest({
+    name: "the empty strip under the workspace list opens a workspace",
+    body: async () => {
+      const workspaceCount = lmuxState.workspaces.length;
+      const tabCount = countTabs(lmuxState);
+      // The waiter goes up before the click, not after: the click's Events
+      // reach main ahead of the script's own answer. A new workspace
+      // announces itself, then its first shell, so waiting on the tab count
+      // lands on the second one and leaves the next case nothing to read.
+      const opening = waitForEvent(
+        (event) => countTabs(event.state) === tabCount + 1,
+      );
+      await lmuxWindow.webContents.executeJavaScript(CLICK_SIDEBAR);
+      const opened = await opening;
+
+      assert.equal(
+        opened.state.workspaces.length,
+        workspaceCount + 1,
+        "the click on the strip opened a tab, not a workspace",
       );
     },
   });
