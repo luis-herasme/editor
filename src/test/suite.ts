@@ -57,7 +57,34 @@ const VISIBLE_DOCUMENT = `(() => {
   return null;
 })()`;
 
+// The empty strip between the + button and the gear, in page coordinates:
+// the case clicks a place rather than an element, so the strip has to be
+// there and hit-testable for the click to mean anything.
+const SIDEBAR_GAP_POINT = `(() => {
+  const list = document
+    .getElementById("new-workspace-button")
+    .getBoundingClientRect();
+  const gear = document.getElementById("settings-button").getBoundingClientRect();
+  const x = Math.round(list.left + list.width / 2);
+  const y = Math.round((list.bottom + gear.top) / 2);
+  const hit = document.elementFromPoint(x, y);
+  let hitElementId = "";
+  if (hit) {
+    hitElementId = hit.id;
+  }
+  return {
+    x,
+    y,
+    hitElementId,
+  };
+})()`;
+
 const rowCountsSchema = z.array(z.number().int());
+const sidebarGapSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  hitElementId: z.string(),
+});
 const scrollTopSchema = z.number();
 const refusedSchema = z.boolean();
 const documentSchema = z.object({
@@ -403,6 +430,51 @@ const suite = describe("the command bus", () => {
         findWorkspace({ state: unpinned.state, id: workspace.id })?.name,
         "linker",
         "unpinning left the workspace with its pinned name",
+      );
+    },
+  });
+
+  busTest({
+    name: "the empty strip under the workspace list opens a workspace",
+    body: async () => {
+      const gap = sidebarGapSchema.parse(
+        await lmuxWindow.webContents.executeJavaScript(SIDEBAR_GAP_POINT),
+      );
+      assert.equal(
+        gap.hitElementId,
+        "sidebar",
+        "the point the case clicks is not the sidebar's own strip",
+      );
+
+      const workspaceCount = lmuxState.workspaces.length;
+      const tabCount = countTabs(lmuxState);
+      // a place, not an element: only a real click proves the strip is
+      // reachable, which a dispatched event would not
+      lmuxWindow.webContents.sendInputEvent({
+        type: "mouseDown",
+        x: gap.x,
+        y: gap.y,
+        button: "left",
+        clickCount: 1,
+      });
+      lmuxWindow.webContents.sendInputEvent({
+        type: "mouseUp",
+        x: gap.x,
+        y: gap.y,
+        button: "left",
+        clickCount: 1,
+      });
+
+      // the workspace announces itself, then its first shell: waiting on the
+      // tab count lands on the second one, so the next case does not read
+      // that shell's Event as its own
+      const opened = await waitForEvent(
+        (event) => countTabs(event.state) === tabCount + 1,
+      );
+      assert.equal(
+        opened.state.workspaces.length,
+        workspaceCount + 1,
+        "the click on the strip opened a tab, not a workspace",
       );
     },
   });
